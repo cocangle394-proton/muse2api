@@ -1,9 +1,9 @@
-/* Muse2API Cookie 导入 —— 读取 muse.ai 的 cookie 并 POST 到 muse2api 服务。
+/* Muse2API Cookie Import — read muse.ai cookies and POST them to the muse2api service.
  *
- * 关键点：用 chrome.cookies 而不是 document.cookie。
- * muse.ai 的关键会话 cookie（hatch_sess / hatch_vml）带 httpOnly，
- * 网页 JS 读不到，只有浏览器扩展的 cookies 接口能拿到。
- * hatch_gw 是可重新签发的路由缓存，不应阻止账号导入。
+ * Key point: use chrome.cookies instead of document.cookie.
+ * The key muse.ai session cookies (hatch_sess / hatch_vml) are httpOnly,
+ * so web-page JS cannot read them; only the browser extension's cookies API can.
+ * hatch_gw is a re-issuable routing cache and should not block account import.
  */
 
 const $ = (id) => document.getElementById(id);
@@ -11,9 +11,9 @@ const STORE = 'muse2api_ext_cfg';
 
 const ESSENTIAL = ['hatch_sess'];
 
-/* ================= 界面语言 / UI language =================
- * 中文是源语言；英文通过下面的词典替换。
- * 新增中文文案时，请在 I18N_EN（整句，可含 {name} 占位符）或 I18N_EN_PATTERNS（服务端返回的含变量文案）里补上英文。 */
+/* ================= UI language =================
+ * English is the source language; the dictionary below maps source strings to their display text.
+ * When adding new copy, add its English text to I18N_EN (whole sentences, may contain {name} placeholders) or I18N_EN_PATTERNS (server-returned strings with variables). */
 const LANG_STORE = 'muse2api_lang';
 const LANG = (() => {
   try { const v = localStorage.getItem(LANG_STORE); if (v === 'zh' || v === 'en') return v; } catch (e) {}
@@ -24,49 +24,49 @@ function setLang(v) {
   location.reload();
 }
 
-/* 整句：中文 → 英文 */
+/* Whole sentences: source text -> display text */
 const I18N_EN = {
-  // popup.html 静态文案
-  'Muse2API Cookie 导入': 'Muse2API Cookie Import',
-  '把当前浏览器里 muse.ai 的登录态，一键同步到你的 muse2api 服务。':
+  // popup.html static copy
+  'Muse2API Cookie Import': 'Muse2API Cookie Import',
+  'Sync the muse.ai login session from this browser to your muse2api service in one click.':
     'Sync the muse.ai login session from this browser to your muse2api service in one click.',
-  '服务地址（BASE URL）': 'Service URL (BASE URL)',
-  '账号标签（可留空）': 'Account label (optional)',
-  '例如 muse-main': 'e.g. muse-main',
-  '读取并导入': 'Read and import',
-  // popup.js 日志 / 状态
-  '请先填服务地址': 'Please enter the service URL first',
-  '请先填 API Key': 'Please enter the API Key first',
-  '正在读取 muse.ai 的 Cookie…': 'Reading muse.ai cookies…',
-  '无法确认当前窗口的 Cookie 存储区。请在已登录 Muse 的窗口中打开扩展，并确认已允许扩展在无痕/InPrivate 模式运行。':
+  'Service URL (BASE URL)': 'Service URL (BASE URL)',
+  'Account label (optional)': 'Account label (optional)',
+  'e.g. muse-main': 'e.g. muse-main',
+  'Read and import': 'Read and import',
+  // popup.js log / status
+  'Please enter the service URL first': 'Please enter the service URL first',
+  'Please enter the API Key first': 'Please enter the API Key first',
+  'Reading muse.ai cookies…': 'Reading muse.ai cookies…',
+  'Cannot identify the current window\'s cookie store. Open the extension in the window signed in to Muse, and allow it in Incognito/InPrivate mode if needed.':
     'Cannot identify the current window\'s cookie store. Open the extension in the window signed in to Muse, and allow it in Incognito/InPrivate mode if needed.',
-  '正在读取当前{window}窗口的 muse.ai Cookie…': 'Reading muse.ai cookies from the current {window} window…',
-  '无痕/InPrivate': 'Incognito/InPrivate',
-  '普通': 'regular',
-  '\nCookie 来源：当前{window}窗口。导入仅保存登录态，请到管理页测试账号。':
+  'Reading muse.ai cookies from the current {window} window…': 'Reading muse.ai cookies from the current {window} window…',
+  'Incognito/InPrivate': 'Incognito/InPrivate',
+  'regular': 'regular',
+  '\nCookie source: current {window} window. Import only saves the session; test the account on the admin page.':
     '\nCookie source: current {window} window. Import only saves the session; test the account on the admin page.',
-  '没读到 muse.ai 的 Cookie。\n请先在这个浏览器里打开并登录 https://muse.ai/ ，再回来点一次。':
+  'No muse.ai cookies found.\nOpen and log in to https://muse.ai/ in this browser first, then click again.':
     'No muse.ai cookies found.\nOpen and log in to https://muse.ai/ in this browser first, then click again.',
-  '读到 {n} 条 Cookie，但缺核心项：{missing}\n未读到登录会话，请检查当前浏览器的登录状态和扩展权限。':
+  'Read {n} cookies, but missing core items such as: {missing}\nThe login session could not be read. Check this browser\'s login and extension permissions.':
     'Read {n} cookies, but missing core items such as: {missing}\nThe login session could not be read. Check this browser\'s login and extension permissions.',
-  '读到 {n} 条 Cookie，正在上传到 {base} …': 'Read {n} cookies, uploading to {base} …',
-  'API Key 不对（服务返回 401）。\n请到管理页「账号池」页顶部复制正确的 API Key。':
+  'Read {n} cookies, uploading to {base} …': 'Read {n} cookies, uploading to {base} …',
+  'Invalid API Key (the service returned 401).\nCopy the correct API Key from the top of the "Account Pool" tab on the admin page.':
     'Invalid API Key (the service returned 401).\nCopy the correct API Key from the top of the "Account Pool" tab on the admin page.',
-  '导入失败：HTTP {status}\n{body}': 'Import failed: HTTP {status}\n{body}',
-  '(自动)': '(auto)',
-  '未知': 'unknown',
-  '✓ 导入成功\n账号标签：{label}\n账号 ID：{id}\nCookie 条数：{count}\n有效期到：{expires}\n':
+  'Import failed: HTTP {status}\n{body}': 'Import failed: HTTP {status}\n{body}',
+  '(auto)': '(auto)',
+  'unknown': 'unknown',
+  '✓ Imported successfully\nAccount label: {label}\nAccount ID: {id}\nCookie count: {count}\nValid until: {expires}\n':
     '✓ Imported successfully\nAccount label: {label}\nAccount ID: {id}\nCookie count: {count}\nValid until: {expires}\n',
-  '\n注意：{warning}': '\nNote: {warning}',
-  '出错了：{msg}\n\n常见原因：\n· 服务地址填错或服务没启动\n· 这个地址不是 https（或证书不被信任）\n· 浏览器拦截了跨域请求':
+  '\nNote: {warning}': '\nNote: {warning}',
+  'Something went wrong: {msg}\n\nCommon causes:\n· The service URL is wrong or the service is not running\n· The URL is not https (or the certificate is not trusted)\n· The browser blocked the cross-origin request':
     'Something went wrong: {msg}\n\nCommon causes:\n· The service URL is wrong or the service is not running\n· The URL is not https (or the certificate is not trusted)\n· The browser blocked the cross-origin request',
-  // 服务端（/admin/accounts）可能返回的整句
-  '未解析到任何 cookie，请检查格式': 'No cookies could be parsed; please check the format',
-  '缺少 Authorization: Bearer <key>': 'Missing Authorization: Bearer <key>',
-  'API key 无效': 'Invalid API key',
+  // Whole sentences the server (/admin/accounts) may return
+  'No cookies could be parsed; please check the format': 'No cookies could be parsed; please check the format',
+  'Missing Authorization: Bearer <key>': 'Missing Authorization: Bearer <key>',
+  'Invalid API key': 'Invalid API key',
 };
 
-/* 含富文本的块：data-i18n="key" → 英文 innerHTML */
+/* Rich-text blocks: data-i18n="key" -> English innerHTML */
 const I18N_EN_HTML = {
   steps: '<b>Before you start, check two things:</b><br>\n'
     + '    1. You are logged in to <a href="https://muse.ai/" target="_blank"\n'
@@ -77,9 +77,9 @@ const I18N_EN_HTML = {
     + '    Nothing is collected or uploaded to any third-party server.',
 };
 
-/* 服务端返回的含变量文案：[正则, 替换串] */
+/* Server-returned strings with variables: [regex, replacement] */
 const I18N_EN_PATTERNS = [
-  [/^缺少核心 cookie：(.*)，该账号可能无法生成$/s, 'Missing core cookies: $1; this account may not be able to generate'],
+  [/^Missing core cookies: (.*); this account may not be able to generate$/s, 'Missing core cookies: $1; this account may not be able to generate'],
 ];
 
 function t(s, vars) {
@@ -115,7 +115,7 @@ function log(html, cls) {
   el.innerHTML = cls ? `<span class="${cls}">${html}</span>` : html;
 }
 
-/* 规范化服务地址：去掉结尾斜杠和 /v1 后缀 */
+/* Normalize the service URL: strip the trailing slash and /v1 suffix */
 function normBase(v) {
   let s = (v || '').trim();
   if (!s) return '';
@@ -131,7 +131,7 @@ async function loadCfg() {
   if (c.base) $('base').value = c.base;
   if (c.key) $('key').value = c.key;
   if (c.label) $('label').value = c.label;
-  // 没有配置过就尝试从当前标签页猜一个（用户在管理页上时）
+  // If never configured, try guessing from the current tab (when the user is on the admin page)
   if (!c.base) {
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -141,7 +141,7 @@ async function loadCfg() {
         const k = new URLSearchParams(u.search).get('key');
         if (k) $('key').value = k;
       }
-    } catch (e) { /* 忽略 */ }
+    } catch (e) { /* Ignore */ }
   }
 }
 
@@ -162,10 +162,10 @@ async function grabCookies() {
   const stores = await chrome.cookies.getAllCookieStores();
   const store = tab && stores.find((s) => s.tabIds.includes(tab.id));
   if (!store) {
-    throw new Error(t('无法确认当前窗口的 Cookie 存储区。请在已登录 Muse 的窗口中打开扩展，并确认已允许扩展在无痕/InPrivate 模式运行。'));
+    throw new Error(t('Cannot identify the current window\'s cookie store. Open the extension in the window signed in to Muse, and allow it in Incognito/InPrivate mode if needed.'));
   }
-  const windowKind = t(tab.incognito ? '无痕/InPrivate' : '普通');
-  log(t('正在读取当前{window}窗口的 muse.ai Cookie…', { window: windowKind }));
+  const windowKind = t(tab.incognito ? 'Incognito/InPrivate' : 'regular');
+  log(t('Reading muse.ai cookies from the current {window} window…', { window: windowKind }));
   // URL filtering excludes unrelated subdomains and paths. Chrome orders
   // matches by longest path, then earliest creation time (as cookies.get does).
   const all = await chrome.cookies.getAll({ url: 'https://muse.ai/api/session', storeId: store.id });
@@ -183,28 +183,28 @@ async function run() {
   const key = $('key').value.trim();
   const label = $('label').value.trim();
 
-  if (!base) return log(t('请先填服务地址'), 'bad');
-  if (!key) return log(t('请先填 API Key'), 'bad');
+  if (!base) return log(t('Please enter the service URL first'), 'bad');
+  if (!key) return log(t('Please enter the API Key first'), 'bad');
 
   $('go').disabled = true;
-  log(t('正在读取 muse.ai 的 Cookie…'));
+  log(t('Reading muse.ai cookies…'));
 
   try {
     const { cookies, expires, windowKind } = await grabCookies();
     const names = Object.keys(cookies);
     if (!names.length) {
-      return log(t('没读到 muse.ai 的 Cookie。\n请先在这个浏览器里打开并登录 '
-                 + 'https://muse.ai/ ，再回来点一次。'), 'bad');
+      return log(t('No muse.ai cookies found.\nOpen and log in to '
+                 + 'https://muse.ai/ in this browser first, then click again.'), 'bad');
     }
     const missing = ESSENTIAL.filter((n) => !cookies[n]);
     if (missing.length) {
-      log(t('读到 {n} 条 Cookie，但缺核心项：{missing}\n'
-          + '未读到登录会话，请检查当前浏览器的登录状态和扩展权限。',
-          { n: names.length, missing: missing.join(LANG === 'en' ? ', ' : '、') }), 'warn');
+      log(t('Read {n} cookies, but missing core items such as: {missing}\n'
+          + 'The login session could not be read. Check this browser\'s login and extension permissions.',
+          { n: names.length, missing: missing.join(', ') }), 'warn');
       return;
     }
 
-    log(t('读到 {n} 条 Cookie，正在上传到 {base} …', { n: names.length, base }));
+    log(t('Read {n} cookies, uploading to {base} …', { n: names.length, base }));
 
     const r = await fetch(base + '/admin/accounts', {
       method: 'POST',
@@ -220,29 +220,29 @@ async function run() {
     try { data = JSON.parse(text); } catch (e) { data = { raw: text }; }
 
     if (r.status === 401) {
-      return log(t('API Key 不对（服务返回 401）。\n'
-                 + '请到管理页「账号池」页顶部复制正确的 API Key。'), 'bad');
+      return log(t('Invalid API Key (the service returned 401).\n'
+                 + 'Copy the correct API Key from the top of the "Account Pool" tab on the admin page.'), 'bad');
     }
     if (!r.ok) {
       const body = typeof data.detail === 'string' ? t(data.detail) : text.slice(0, 300);
-      return log(t('导入失败：HTTP {status}\n{body}', { status: r.status, body }), 'bad');
+      return log(t('Import failed: HTTP {status}\n{body}', { status: r.status, body }), 'bad');
     }
 
     const a = (data.added && data.added[0]) || {};
     await saveCfg();
-    log(t('✓ 导入成功\n账号标签：{label}\n账号 ID：{id}\nCookie 条数：{count}\n有效期到：{expires}\n', {
-          label: a.label || label || t('(自动)'),
+    log(t('✓ Imported successfully\nAccount label: {label}\nAccount ID: {id}\nCookie count: {count}\nValid until: {expires}\n', {
+          label: a.label || label || t('(auto)'),
           id: a.id || '?',
           count: a.cookie_count || names.length,
-          expires: a.expires_at ? new Date(a.expires_at * 1000).toLocaleString() : t('未知'),
+          expires: a.expires_at ? new Date(a.expires_at * 1000).toLocaleString() : t('unknown'),
         })
-        + t('\nCookie 来源：当前{window}窗口。导入仅保存登录态，请到管理页测试账号。', { window: windowKind })
-        + (data.warning ? t('\n注意：{warning}', { warning: t(data.warning) }) : ''), 'ok');
+        + t('\nCookie source: current {window} window. Import only saves the session; test the account on the admin page.', { window: windowKind })
+        + (data.warning ? t('\nNote: {warning}', { warning: t(data.warning) }) : ''), 'ok');
   } catch (e) {
-    log(t('出错了：{msg}\n\n常见原因：\n'
-        + '· 服务地址填错或服务没启动\n'
-        + '· 这个地址不是 https（或证书不被信任）\n'
-        + '· 浏览器拦截了跨域请求', { msg: e && e.message ? e.message : String(e) }), 'bad');
+    log(t('Something went wrong: {msg}\n\nCommon causes:\n'
+        + '· The service URL is wrong or the service is not running\n'
+        + '· The URL is not https (or the certificate is not trusted)\n'
+        + '· The browser blocked the cross-origin request', { msg: e && e.message ? e.message : String(e) }), 'bad');
   } finally {
     $('go').disabled = false;
   }

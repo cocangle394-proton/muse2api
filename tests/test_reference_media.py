@@ -74,8 +74,8 @@ with tempfile.TemporaryDirectory() as home:
     assert norm(data_url("audio/mp3", MP3))[1] == "audio/mpeg"
     assert norm(data_url("", PDF))[1] == "application/pdf"
     assert norm(base64.b64encode(mp4(3)).decode())[1] == "video/mp4"
-    expect_error(lambda: norm(data_url("text/plain", b"x")), app.MuseGenerationError, "不受支持")
-    expect_error(lambda: norm(data_url("video/mp4", mp4(130))), app.MuseGenerationError, "120 秒")
+    expect_error(lambda: norm(data_url("text/plain", b"x")), app.MuseGenerationError, "not supported")
+    expect_error(lambda: norm(data_url("video/mp4", mp4(130))), app.MuseGenerationError, "120 seconds")
     print("PASS: sniffing, MIME aliases, unsupported types and video duration limit")
 
     req = app.VideoRequest(prompt="x", images=["img"], videos=[{"video_url": "vid"}],
@@ -84,32 +84,32 @@ with tempfile.TemporaryDirectory() as home:
     expect_error(lambda: app._video_references(app.VideoRequest(prompt="x", videos=[{}])),
                  app.HTTPException, "videos[0]")
     expect_error(lambda: app._video_references(app.VideoRequest(
-        prompt="x", images=["a"] * 6, videos=["b"] * 5)), app.HTTPException, "最多 10 个")
+        prompt="x", images=["a"] * 6, videos=["b"] * 5)), app.HTTPException, "at most 10")
 
     prepared = app._prepare_reference_images([
         data_url("image/png", b"png"), data_url("video/mp4", mp4(4)), data_url("audio/wav", WAV)])
     kinds = app._reference_kinds(prepared)
     assert kinds == ["image", "video", "audio"]
     prompt = app.build_video_prompt(req, kinds)
-    assert "1 张图片、1 段视频、1 段音频" in prompt and "第一张" not in prompt
-    assert "附件对照：[图1] 是第 1 个附件（图片），[视频1] 是第 2 个附件（视频），[音频1] 是第 3 个附件（音频）" in prompt
-    tokens = app.build_video_prompt(app.VideoRequest(prompt="[图2] 走进 [图1]", images=["a", "b"]), ["image", "image"])
-    assert "[图2] 是第 2 个附件（图片）" in tokens and "未说明时以第一张" in tokens
+    assert "1 image, 1 video, 1 audio" in prompt and "first image" not in prompt
+    assert "Attachment map: [Image 1] is attachment 1 (image), [Video 1] is attachment 2 (video), [Audio 1] is attachment 3 (audio)" in prompt
+    tokens = app.build_video_prompt(app.VideoRequest(prompt="[Image 2] walks into [Image 1]", images=["a", "b"]), ["image", "image"])
+    assert "[Image 2] is attachment 2 (image)" in tokens and "when unspecified, use the first image" in tokens
     plain = app.build_video_prompt(app.VideoRequest(prompt="x", images=["a", "b"]), ["image", "image"])
-    assert "附件对照" not in plain and "以第一张作为主要起始画面" in plain
+    assert "Attachment map" not in plain and "use the first image as the main opening frame" in plain
     two_videos = app.build_video_prompt(app.VideoRequest(prompt="x", videos=["a", "b"]), ["video", "video"])
-    assert "[视频2] 是第 2 个附件（视频）" in two_videos
-    assert "图生视频" not in app.build_video_prompt(app.VideoRequest(prompt="x", videos=["v"], size="16:9"), ["video"])
-    assert "图生视频" in app.build_video_prompt(app.VideoRequest(prompt="x", image="i", size="16:9"))
+    assert "[Video 2] is attachment 2 (video)" in two_videos
+    assert "image-to-video" not in app.build_video_prompt(app.VideoRequest(prompt="x", videos=["v"], size="16:9"), ["video"])
+    assert "image-to-video" in app.build_video_prompt(app.VideoRequest(prompt="x", image="i", size="16:9"))
     video_only = app.build_video_prompt(app.VideoRequest(prompt="x", videos=["v"]), ["video"])
-    assert "1 段视频" in video_only and "第一张图片" not in video_only
+    assert "1 video" in video_only and "first image" not in video_only
     image_prompt = app.build_image_prompt(app.ImageRequest(prompt="x", videos=["v"]), ["video"])
-    assert "1 段视频" in image_prompt and "纯净画面" not in image_prompt
-    assert "[视频1] 是第 1 个附件（视频）" in image_prompt
-    image_tokens = app.build_image_prompt(app.ImageRequest(prompt="[图1] 穿上 [图2] 的衣服", images=["a", "b"]), ["image", "image"])
-    assert "附件对照：[图1] 是第 1 个附件（图片），[图2] 是第 2 个附件（图片）" in image_tokens
+    assert "1 video" in image_prompt and "clean frame" not in image_prompt
+    assert "[Video 1] is attachment 1 (video)" in image_prompt
+    image_tokens = app.build_image_prompt(app.ImageRequest(prompt="[Image 1] wears [Image 2]'s clothes", images=["a", "b"]), ["image", "image"])
+    assert "Attachment map: [Image 1] is attachment 1 (image), [Image 2] is attachment 2 (image)" in image_tokens
     legacy = app.build_video_prompt(app.VideoRequest(prompt="x", image="i"))
-    assert "第一帧参考图" in legacy
+    assert "first-frame reference image" in legacy
     print("PASS: ordered media fields, count limit and media-aware prompts")
 
     class FakeForm(dict):
@@ -147,7 +147,7 @@ with tempfile.TemporaryDirectory() as home:
                         prompt="x", **{"async": True})
         assert asyncio.run(app.images_edits(FakeMultipart(form), None)) == {"ok": True}
         assert app._reference_kinds(captured["refs"]) == ["image", "video", "audio"]
-        assert "1 段视频" in captured["prompt"]
+        assert "1 video" in captured["prompt"]
 
         bad = FakeForm({"audio": [FakeUpload(b"x", "text/html")]}, prompt="x", **{"async": True})
         try:
@@ -161,7 +161,7 @@ with tempfile.TemporaryDirectory() as home:
     print("PASS: multipart image/video/audio fields")
 
 
-    # 页面把刚上传的素材渲染成"结果"时，按哈希忽略并继续等待真正的成品
+    # When the page renders a just-uploaded asset as a "result", ignore it by hash and keep waiting for the real finished product
     media = Path(home, "media")
     guard = app.MuseEngine(SimpleNamespace(profile_dir=home, media_dir=str(media)))
     upload_bytes, result_bytes = mp4(4), mp4(5) + b"generated"

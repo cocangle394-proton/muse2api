@@ -40,7 +40,7 @@ with tempfile.TemporaryDirectory() as profile:
     try:
         engine._wait_attachment("", 60, "video")
     except engine_module.MuseGenerationError as exc:
-        assert "未成功送达" in str(exc)
+        assert "not delivered successfully" in str(exc)
         assert clock[0] < 32, clock[0]
     else:
         raise AssertionError("undelivered video request waited for the full timeout")
@@ -79,10 +79,10 @@ def wait_case(states, timeout=600, expect="video"):
         return e._wait_attachment("", timeout, expect)
 
 
-refusal = "视频没生成成功：你这个账号所在的国家/地区目前不支持视频生成，这是持续限制。"
+refusal = "The video was not generated: video generation is not supported in your account's country/region. This is a persistent restriction."
 try:
     wait_case([
-        {"stop": True, "tail": "正在处理", "path": "/thread/new"},
+        {"stop": True, "tail": "Processing", "path": "/thread/new"},
         {"stop": False, "tail": refusal, "path": "/thread/new"},
     ])
 except engine_module.MuseModelRefusalError as exc:
@@ -102,7 +102,7 @@ try:
         {"stop": False, "tail": "", "path": "/thread/new"},
     ])
 except engine_module.MuseGenerationError as exc:
-    assert "未建立视频任务线程" in str(exc), str(exc)
+    assert "No video task thread was created" in str(exc), str(exc)
 else:
     raise AssertionError("idle /thread/new task waited for full timeout")
 

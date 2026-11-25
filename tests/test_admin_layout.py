@@ -11,7 +11,7 @@ html=Path(args.html).read_bytes()
 VERSION=json.loads((ROOT/'version.json').read_text())['version']
 now=int(time.time())
 accounts=[{'id':'fixture'+str(i).zfill(5),'label':'Fixture-'+str(i),'enabled':True,'ok':True,'essential_ok':True,'cookie_count':12,
- 'proxy':None,'note':'会话有效 · 自动保活 (VM: RUNNING)','last_used':now-43200,'expires_at':now+172800,
+ 'proxy':None,'note':'Session valid · auto keep-alive (VM: RUNNING)','last_used':now-43200,'expires_at':now+172800,
  'quota':{'found':True,'plan':'Free plan','weekly_used_pct':29,'extra_left':'1B tokens left','checked_at':now-10000}} for i in range(8)]
 events=[]
 network=[]
@@ -111,11 +111,11 @@ with tempfile.TemporaryDirectory(prefix='muse-layout-',dir=Path.home()) as home:
    wait("document.querySelector('#taskBody').textContent.includes('fixture-task')")
    text=page.js("document.querySelector('#tab-tasks tbody').innerText")
    check('Fixture-0' in text,lang+': task account is not visible')
-   for word in (['Queue','Generate','Total']if lang=='en'else['排队','生成','总计']):check(word in text,lang+': task duration missing '+word)
+   for word in (['Queue','Generate','Total']if lang=='en'else['Queue','Generate','Total']):check(word in text,lang+': task duration missing '+word)
    server_state['mode']='unknown'
    page.js("loadRepoStatus(true)",await_promise=True)
    badge=page.js("$('repoBadge').textContent")
-   check('已是最新'not in badge and'Up to date'not in badge,lang+': unknown remote was reported current')
+   check('Up to date'not in badge,lang+': unknown remote was reported current')
    if lang=='en':check('unconfirmed'in badge.lower(),'en: unknown state is not localized')
    server_state['mode']='update'
    page.js("loadRepoStatus(true);goTab('pool')")

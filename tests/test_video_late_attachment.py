@@ -66,30 +66,30 @@ def scenario(source, text, ready_at=25, timeout=90, later_text=None, stop_until=
 
 
 def cases(source):
-    cn = "视频已生成，规格正好：720x1280 竖屏、时长 6 秒。 Video not found"
+    claim = "The video has been generated, with exactly the requested specs: 720x1280 portrait, 6 seconds long. Video not found"
     en = "The video has been generated successfully. Video not found"
     result = {}
-    for label, text in (("cn_claim", cn), ("cn_ready", "视频生成好了，时长6秒。"),
-                        ("cn_short", "已生成，等待附件加载。"),
+    for label, text in (("cn_claim", claim), ("cn_ready", "The video is ready, 6 seconds long."),
+                        ("cn_short", "Generated, waiting for the attachment to load."),
                         ("en_claim", en), ("en_ready", "Your video is ready."),
                         ("verified_report", "verified generated artifact")):
         for delay in (15, 30, 60):
             result[f"{label}_{delay}"] = scenario(source, text, ready_at=delay)
-    result["claim_no_attachment"] = scenario(source, cn, ready_at=None, timeout=45)
-    result["claim_only_cover"] = scenario(source, cn, ready_at=None, timeout=45, cover=True)
-    result["stop_lifecycle"] = scenario(source, cn, ready_at=30, stop_until=20)
-    refusal = "视频没生成成功：你这个账号所在的国家/地区目前不支持视频生成。"
+    result["claim_no_attachment"] = scenario(source, claim, ready_at=None, timeout=45)
+    result["claim_only_cover"] = scenario(source, claim, ready_at=None, timeout=45, cover=True)
+    result["stop_lifecycle"] = scenario(source, claim, ready_at=30, stop_until=20)
+    refusal = "The video was not generated: video generation is not supported in your account's country/region yet."
     result["explicit_refusal"] = scenario(source, refusal)
-    result["claim_then_refusal"] = scenario(source, cn, later_text=(12, refusal))
+    result["claim_then_refusal"] = scenario(source, claim, later_text=(12, refusal))
     for label, text in (
-        ("negated_cn", "视频没有生成成功，请重新尝试。"),
+        ("negated_cn", "The video was not generated successfully. Please try again."),
         ("negated_en", "The video has not been generated successfully. Please try again."),
         ("negated_contraction", "Your video hasn't been generated. Please try again."),
         ("negated_could_not", "The video could not be generated."),
         ("negated_couldnt", "The video couldn't be generated."),
         ("negated_none", "No video has been generated."),
         ("claim_then_upload_failed", "The video was generated, but the upload failed."),
-        ("failed_after_claim", "视频已生成，但随后处理失败，无法提供视频。"),
+        ("failed_after_claim", "The video was generated, but later processing failed, so no video is available."),
     ):
         result[label] = scenario(source, text)
     return result

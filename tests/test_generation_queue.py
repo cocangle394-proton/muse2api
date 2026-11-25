@@ -73,17 +73,17 @@ class GenerationQueueTests(unittest.TestCase):
 
     def test_queue_failure_never_generates(self):
         with patch.object(app.GEN_LOCK,'acquire',return_value=False),patch.object(app.engine,'generate') as generate:
-            with self.assertRaisesRegex(app.MuseGenerationError,'排队时限'):app._run_generation('x','video',1)
+            with self.assertRaisesRegex(app.MuseGenerationError,'queue timeout'):app._run_generation('x','video',1)
         generate.assert_not_called()
 
     def test_failed_job_keeps_account_and_durations(self):
-        with patch.object(app.engine,'generate',side_effect=app.MuseModelRefusalError('只有文字，无媒体')):
+        with patch.object(app.engine,'generate',side_effect=app.MuseModelRefusalError('text only, no media')):
             result=asyncio.run(app.create_video(app.VideoRequest(prompt='x')))
             until=time.monotonic()+2
             while app.store.get_task(result['id'])['status'] in ['queued','processing'] and time.monotonic()<until:time.sleep(.01)
         task=app.store.get_task(result['id'])
         self.assertEqual(task['status'],'failed');self.assertIn(task['account'],[a['id'] for a in self.accounts])
-        self.assertIn('只有文字',task['last_error']);self.assertEqual(task['attempt'],1)
+        self.assertIn('text only',task['last_error']);self.assertEqual(task['attempt'],1)
         self.assertGreaterEqual(task['total_elapsed'],task['elapsed']);self.assertIn('queue_elapsed',task)
 
 if __name__=="__main__":unittest.main(verbosity=2)

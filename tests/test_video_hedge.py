@@ -37,13 +37,13 @@ with tempfile.TemporaryDirectory() as home:
             if stop is not None and stop.wait(seconds):
                 with lock:
                     stopped.append(name)
-                raise app.MuseGenerationError("客户端已断开连接，终止生成任务")
+                raise app.MuseGenerationError("Client disconnected, generation task aborted")
             if stop is None:
                 time.sleep(seconds)
             if outcome == "busy":
-                raise app.MuseServiceBusyError("Muse 媒体服务暂时不可用（上游过载/503）")
+                raise app.MuseServiceBusyError("Muse media service temporarily unavailable (upstream overload/503)")
             if outcome == "refuse":
-                raise app.MuseModelRefusalError("模型未生成媒体，仅返回文本: 地区不可用")
+                raise app.MuseModelRefusalError("The model produced no media, only text: region unavailable")
             return {"filename": f"{name}.mp4", "size": 1, "kind": "video"}
         return generate
 
@@ -79,7 +79,7 @@ with tempfile.TemporaryDirectory() as home:
     assert len(stopped) == 1, stopped
     loser = stopped[0]
     loser_note = next(a for a in app.store.list_accounts() if a["label"] == loser).get("note", "")
-    assert "任务异常" not in loser_note, loser_note
+    assert "Task error" not in loser_note, loser_note
     print("PASS: overloaded video runs on two accounts, first video wins, the other is cancelled cleanly")
 
     result = run(slow_fast, overloaded=False)
@@ -116,11 +116,11 @@ with tempfile.TemporaryDirectory() as home:
     with app._OVERLOAD_LOCK:
         app._last_overload = 0.0
     now = time.time()
-    assert not app._seed_overload_from_tasks([{"error": "别的错误", "updated_at": now}], now)
+    assert not app._seed_overload_from_tasks([{"error": "some other error", "updated_at": now}], now)
     assert not app._seed_overload_from_tasks(
-        [{"error": "Muse 媒体服务暂时不可用（上游过载/503）", "updated_at": now - app.VIDEO_HEDGE_WINDOW - 60}], now)
+        [{"error": "Muse media service temporarily unavailable (upstream overload/503)", "updated_at": now - app.VIDEO_HEDGE_WINDOW - 60}], now)
     assert not app._overload_recent()
     assert app._seed_overload_from_tasks(
-        [{"last_error": "Muse 媒体服务暂时不可用（上游过载/503）", "updated_at": str(now - 60)}], now)
+        [{"last_error": "Muse media service temporarily unavailable (upstream overload/503)", "updated_at": str(now - 60)}], now)
     assert app._overload_recent()
     print("PASS: a restart keeps parallel mode when recent tasks hit the outage")

@@ -82,10 +82,10 @@ start=html.index('function proxyStatus(');end=html.index('async function loadPoo
 renderer=html[start:end]
 script="const vm=require('node:vm');const renderer="+json.dumps(renderer)+";"+"""
 const cases=[
- [{}, '代理未测试'],
- [{checked_at:1,proxy_reachable:true}, '代理已连通'],
- [{checked_at:1,proxy_reachable:false}, '代理未通过'],
- [{checked_at:1,proxy_reachable:null}, '代理未确认']
+ [{}, 'Proxy not tested'],
+ [{checked_at:1,proxy_reachable:true}, 'Proxy connected'],
+ [{checked_at:1,proxy_reachable:false}, 'Proxy check failed'],
+ [{checked_at:1,proxy_reachable:null}, 'Proxy unconfirmed']
 ];
 for(const [status,label] of cases){
  const ctx={account:{proxy:{server:'socks5://fixture:1080'},proxy_status:status},t:x=>x,esc:x=>String(x),fmtTime:x=>'checked'};

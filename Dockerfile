@@ -1,6 +1,6 @@
 FROM python:3.11-slim-bookworm
 
-# 基础环境与 Chromium 安装
+# Base environment and Chromium installation
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
     MUSE2API_HOME=/app \
@@ -15,7 +15,7 @@ LABEL org.opencontainers.image.revision=$BUILD_SHA
 
 WORKDIR /app
 
-# 安装 Chromium、中文字体与核心依赖
+# Install Chromium, CJK fonts, and core dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     chromium \
     ffmpeg \
@@ -27,17 +27,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# 安装 Python 依赖
+# Install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 复制代码与必要目录
+# Copy code and required directories
 COPY admin.html app.py cdp.py config.py engine.py store.py proxy.py generation_timing.py thumbnails.py version.json ./
 COPY deploy/ ./deploy/
 COPY extension/ ./extension/
 COPY tools/ ./tools/
 
-# 创建持久化数据目录
+# Create the persistent data directory
 RUN mkdir -p /app/data/media /app/data/downloads /root/muse2api-profiles
 
 VOLUME ["/app/data"]

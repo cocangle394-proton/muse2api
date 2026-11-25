@@ -1,4 +1,4 @@
-"""账号池与任务存储（JSON 落盘，原子写）。"""
+"""Account pool and task storage (JSON on disk, atomic writes)."""
 from __future__ import annotations
 
 import json
@@ -12,8 +12,8 @@ from proxy import public_proxy
 
 _LOCK = threading.Lock()
 
-# 登录会话存在性检查；可用性仍须经上游认证（与 engine 一致）
-# hatch_vml 是可选工作区令牌，缺失不能据此拒绝会话导入
+# Login-session existence check; usability still requires upstream authentication (same as engine)
+# hatch_vml is an optional workspace token; its absence alone must not reject a session import
 ESSENTIAL_COOKIES = ("hatch_sess",)
 
 
@@ -24,15 +24,15 @@ def _is_pos(v) -> bool:
         return False
 
 
-# hatch_vml 固定约 2 天，且不因使用而延长 —— 它就是决定账号寿命的那条 cookie。
-# 实测对照：生成前后 synced_at 变了、也捞到新 cookie，但 4 条核心 cookie 的
-# expires 一动不动。所以拿不到 hatch_vml 的 expires 时，按「导入时间 + 2 天」估算，
-# 而不是退回到 hatch_native_auth_device 的 30 天（那个不决定生死，会误导用户）。
+# hatch_vml lasts a fixed ~2 days and is not extended by use -- it is the cookie that decides an account's lifetime.
+# Measured comparison: synced_at changed before/after generation and new cookies were fetched, but the 4 core cookies'
+# expires did not move at all. So when hatch_vml's expires cannot be obtained, estimate with "import time + 2 days",
+# instead of falling back to hatch_native_auth_device's 30 days (that one does not decide life or death and would mislead users).
 VML_TTL = 2 * 86400
 
 
 def min_expiry(cookies_exp: dict | None) -> int | None:
-    """核心 cookie 里最早过期的那个（通用兜底，不区分哪条决定寿命）。"""
+    """The earliest-expiring core cookie (generic fallback, regardless of which one decides the lifetime)."""
     if not cookies_exp:
         return None
     vals = []
@@ -57,12 +57,12 @@ def min_expiry(cookies_exp: dict | None) -> int | None:
 
 def account_expiry(cookies_exp: dict | None,
                    base_ts: int | None = None) -> int | None:
-    """账号实际失效时间。
+    """When the account actually expires.
 
-    优先级：
-      1) hatch_vml 的真实 expires（最准）；
-      2) 拿不到就用 base_ts(导入/同步时刻) + VML_TTL 估算 —— 因为寿命就是 2 天；
-      3) 都没有再退回核心 cookie 最早过期。
+    Priority:
+      1) hatch_vml's real expires (most accurate);
+      2) if unavailable, estimate with base_ts (import/sync time) + VML_TTL -- because the lifetime is 2 days;
+      3) if neither is available, fall back to the earliest core cookie expiry.
     """
     ce = cookies_exp or {}
     vml = ce.get("hatch_vml")
@@ -106,7 +106,7 @@ class Store:
                 a["expires_at"] = int(ce["hatch_vml"])
         self.tasks: dict[str, dict] = _read(cfg.tasks_file, {})
 
-    # ---------- 账号 ----------
+    # ---------- Accounts ----------
     def add_account(self, cookies: dict, label: str = "",
                     cookies_exp: dict | None = None) -> dict:
         with _LOCK:
@@ -141,7 +141,7 @@ class Store:
             item["cookie_count"] = len(a.get("cookies", {}))
             item["essential_ok"] = all(
                 a.get("cookies", {}).get(n) for n in ESSENTIAL_COOKIES)
-            # 有效期是 hatch_vml 的实测 expires，还是按「2 天寿命」推算的
+            # Whether the expiry is hatch_vml's measured expires or estimated from the "2-day lifetime"
             item["expires_estimated"] = not _is_pos(ce.get("hatch_vml"))
             out.append(item)
         return out
@@ -157,8 +157,8 @@ class Store:
                      force_rotate: bool = False, exclude_id: str | None = None,
                      exclude_ids: set[str] | list[str] | None = None,
                      record_use: bool = True) -> dict | None:
-        """选择可用账号：优先复用当前已预热的健康账号（减少切号重连耗时），每满 15 次或遇错自动轮转。
-        exclude_ids: 需要排除的账号 ID 集合（例如正在被其他并发线程占用的账号）。"""
+        """Pick a usable account: prefer reusing the currently warmed-up healthy account (less reconnect time when switching), auto-rotating every 15 uses or on error.
+        exclude_ids: set of account IDs to exclude (e.g. accounts held by other concurrent threads)."""
         with _LOCK:
             live = [a for a in self.accounts if a.get("enabled", True) and a.get("cookies")]
             if not live:
@@ -171,7 +171,7 @@ class Store:
                 if available:
                     live = available
                 elif exclude_ids is not None:
-                    # 并发模式下要求避开所有繁忙账号，但当前无剩余空闲账号
+                    # Concurrent mode requires avoiding all busy accounts, but no idle account remains
                     return None
                 elif len(live) > 1:
                     live = [a for a in live if a["id"] != exclude_id] or live
@@ -198,7 +198,7 @@ class Store:
             return acc
 
     def touch_keepalive(self, aid: str, ok: bool | None = True, note: str = ""):
-        """ok=None 仅记录未确认的检测；保留上次账号状态、成功保活时间和有效期。"""
+        """ok=None only records an unconfirmed check; keeps the last account status, last successful keepalive time, and expiry."""
         with _LOCK:
             now_ts = int(time.time())
             for a in self.accounts:
@@ -207,7 +207,7 @@ class Store:
                         a["ok"] = ok
                     if ok is True:
                         a["last_keepalive"] = now_ts
-                        # ponytail: 只信实际 Cookie 到期时间或原导入锚点，不凭检测成功虚推 48h。
+                        # ponytail: only trust the actual cookie expiry or the original import anchor; never push expiry 48h forward just because a check succeeded.
                         a["expires_at"] = account_expiry(
                             a.get("cookies_exp"), a.get("expiry_anchor") or a.get("created_at"))
                     if note:
@@ -231,13 +231,13 @@ class Store:
         return None
 
     def update_account(self, aid: str, **kw) -> dict | None:
-        """更新标签 / 启用状态 / cookies / 有效期等；值为 None 的字段跳过。
+        """Update label / enabled status / cookies / expiry, etc.; fields with a None value are skipped.
 
-        传了 cookies_exp 会自动重算 expires_at，不用调用方自己算。
-        估算锚点 expiry_anchor 的维护规则（避免有效期被反复虚推）：
-          - 读到了 hatch_vml 的真实 expires  -> 清空锚点，直接用真值；
-          - 读不到且锚点为空                -> 把锚点钉在当下（只钉一次）；
-          - 补入全新会话 cookie（重登）      -> 调用方显式传 expiry_anchor=now 重置。
+        Passing cookies_exp automatically recomputes expires_at; the caller does not need to compute it.
+        Maintenance rules for the estimation anchor expiry_anchor (to avoid expiry being pushed forward repeatedly):
+          - hatch_vml's real expires was read -> clear the anchor and use the real value;
+          - unreadable and anchor is empty -> pin the anchor to now (only once);
+          - fresh session cookies supplied (re-login) -> the caller explicitly passes expiry_anchor=now to reset.
         """
         with _LOCK:
             for a in self.accounts:
@@ -276,7 +276,7 @@ class Store:
                 "healthy": healthy, "error": bad,
                 "expiring": expiring, "expired": expired}
 
-    # ---------- 任务 ----------
+    # ---------- Tasks ----------
     def create_task(self, kind: str, prompt: str) -> dict:
         with _LOCK:
             tid = "task_" + uuid.uuid4().hex[:20]

@@ -20,19 +20,19 @@ with tempfile.TemporaryDirectory() as home:
 
     # Replies observed from muse.ai on 2026-11-24 while its video backend was overloaded.
     for text in (
-        "没能生成出来，视频服务现在过载了，报了 503，不是规格的问题。",
-        "这次没生成成功 — 视频生成服务暂时过载（503），没有产出视频文件。",
-        "视频生成服务暂时不可用，这次没能生成出来。",
-        "这次没能生成出来：视频生成服务那边返回了错误，重试 3 次后仍不可用，所以没有产出视频。",
-        "抱歉，这次没能生成出来。 刚才尝试生成时，视频服务那边暂时不可用，试了几次都返回了错误。",
+        "It couldn't be generated — the video service is overloaded right now, returning 503; it's not a spec problem.",
+        "This generation failed — the video generation service is temporarily overloaded (503) and produced no video file.",
+        "The video generation service is temporarily unavailable, so nothing was generated this time.",
+        "This generation failed: the video generation service returned errors and was still unavailable after 3 retries, so no video was produced.",
+        "Sorry, nothing was generated this time. When I tried, the video service was temporarily unavailable and kept returning errors.",
         "Sorry, the video service is overloaded right now (503). Please try again later.",
     ):
         assert busy(text), text
     for text in (
-        "没生成成功：你所在的国家或地区暂不支持视频生成。",
-        "这个内容违反了使用政策，我不能生成。",
-        "账号额度已用完，暂时无法生成视频。",
-        "我建议的 reconciled 版本： 格式：9:16 竖屏，720x1280",
+        "Generation failed: video generation is not supported in your country or region yet.",
+        "This content violates the usage policy, so I can't generate it.",
+        "Your account quota is used up, so video generation is temporarily unavailable.",
+        "My suggested reconciled version: format: 9:16 portrait, 720x1280",
         "",
     ):
         assert not busy(text), text
@@ -71,7 +71,7 @@ with tempfile.TemporaryDirectory() as home:
             for p in reversed(common):
                 p.stop()
 
-    outage = app.MuseServiceBusyError("Muse 媒体服务暂时不可用（上游过载/503）")
+    outage = app.MuseServiceBusyError("Muse media service temporarily unavailable (upstream overload/503)")
 
     def recover(n):
         if n == 1:
@@ -94,14 +94,14 @@ with tempfile.TemporaryDirectory() as home:
     def busy_then_timeout(n):
         if n == 1:
             raise outage
-        raise app.MuseGenerationError("等待生成超时，未出现新的生成结果")
+        raise app.MuseGenerationError("Timed out waiting for generation; no new generation result appeared")
 
     calls, exc = run(busy_then_timeout, account_id=first["id"])
     assert exc is outage, exc
     print("PASS: a retry that times out still reports the outage")
 
     def refuse(n):
-        raise app.MuseModelRefusalError("模型未生成媒体，仅返回文本: 地区不可用")
+        raise app.MuseModelRefusalError("The model produced no media, only text: region unavailable")
 
     calls, exc = run(refuse, account_id=first["id"])
     assert isinstance(exc, app.MuseModelRefusalError) and calls == ["one"], (exc, calls)

@@ -54,7 +54,7 @@ for (const incognito of [false, true]) {
 }
 for (const options of [{tab: false}, {stores: [{id: 'wrong-default', tabIds: [99]}]}]) {
   const f = fixture(options);
-  await assert.rejects(f.run('grabCookies()'), /Cookie 存储区/);
+  await assert.rejects(f.run('grabCookies()'), /Cookie store/);
   assert.equal(f.calls.reads.length, 0, 'unknown store must fail closed');
   checks++;
 }
@@ -78,8 +78,8 @@ for (const options of [{tab: false}, {stores: [{id: 'wrong-default', tabIds: [99
   assert.equal(f.calls.uploads.length, 1);
   assert.equal(f.calls.uploads[0].body.cookies.hatch_sess, 'httpOnly%3Afixture%2Bvalue');
   assert.equal(f.calls.uploads[0].body.expires.hatch_sess, 2000000000);
-  assert.match(f.element('log').innerHTML, /Cookie 来源：当前无痕\/InPrivate窗口/);
-  assert.match(f.element('log').innerHTML, /请到管理页测试账号/);
+  assert.match(f.element('log').innerHTML, /Cookie source: current Incognito\/InPrivate window/);
+  assert.match(f.element('log').innerHTML, /Please test the account on the admin page/);
   checks++;
 }
 for (const options of [{tab: false}, {cookies: [cookie('')]}]) {

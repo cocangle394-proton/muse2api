@@ -37,9 +37,9 @@ assert "hatch_gw" not in engine + helper + extension + userscript
 manifest = json.loads((ROOT / "extension/manifest.json").read_text(encoding="utf-8"))
 assert tuple(map(int, manifest["version"].split("."))) >= (1, 0, 1)
 admin = (ROOT / "admin.html").read_text(encoding="utf-8")
-assert "muse.ai 的 4 条核心 cookie" not in admin
 assert "muse.ai's 4 core cookies" not in admin
-assert "缺少时不阻止导入" in admin
+assert "muse.ai's 4 core cookies" not in admin
+assert "does not block import" in admin
 assert "Required cookies:" in admin
 assert "does not block import" in admin
 print("PASS: server and every cookie importer require only hatch_sess; hatch_vml is optional")

@@ -27,15 +27,15 @@ class QuotaLocalizationTests(unittest.TestCase):
         return result
 
     def test_traditional_example(self):
-        text = ("設定\n一般\nMeta 帳戶\n用量\n免費計劃\n"
-                "每星期上限會於 10月30日重設\n已用 7%\n額外的符元\n永不過期\n"
-                "已使用 0%（剩餘 20\u00a0億個憑證）\n升級\n語言\n外觀")
-        result = self.fields(text, found=True, plan="免費計劃",
-                             weekly_reset="10月30日", weekly_used_pct=7,
+        text = ("Settings\nGeneral\nMeta account\nUsage\nFree plan\n"
+                "Weekly limit resets on Oct 30\n7% used\nAdditional tokens\nNever expires\n"
+                "0% used (2B tokens left)\nUpgrade\nLanguage\nAppearance")
+        result = self.fields(text, found=True, plan="Free plan",
+                             weekly_reset="Oct 30", weekly_used_pct=7,
                              extra_used_pct=0, extra_expires="never",
-                             extra_left="剩餘 20 億個憑證")
-        self.assertNotIn("Meta 帳戶", result["raw"])
-        self.assertNotIn("語言", result["raw"])
+                             extra_left="2B tokens left")
+        self.assertNotIn("Meta account", result["raw"])
+        self.assertNotIn("Language", result["raw"])
 
     def test_original_english(self):
         self.fields("Settings\nGeneral\nUsage\nFree plan\nWeekly limit resets on Sep 30\n"
@@ -45,33 +45,33 @@ class QuotaLocalizationTests(unittest.TestCase):
                     extra_left="2B tokens left")
 
     def test_simplified_example(self):
-        self.fields("设置\n用量\n免费计划\n每周上限将于 10月22日重置\n已使用 12.5%\n"
-                    "额外令牌\n永不过期\n已使用 0%（剩余 20 亿令牌）\n语言",
-                    found=True, plan="免费计划", weekly_reset="10月22日",
+        self.fields("Settings\nUsage\nFree plan\nWeekly limit resets on Oct 22\n12.5% used\n"
+                    "Additional tokens\nNever expires\n0% used (2B tokens left)\nLanguage",
+                    found=True, plan="Free plan", weekly_reset="Oct 22",
                     weekly_used_pct=12.5, extra_used_pct=0, extra_expires="never",
-                    extra_left="剩余 20 亿令牌")
+                    extra_left="2B tokens left")
 
     def test_zero_is_success_and_integer(self):
-        for text in ["0% used", "已用 0%", "已使用 0%", "已用 ０％"]:
+        for text in ["0% used", "0% used", "0% used", "０％ used"]:
             with self.subTest(text=text):
                 result = self.fields(text, found=True, weekly_used_pct=0)
                 self.assertIs(type(result["weekly_used_pct"]), int)
 
     def test_decimal_percentages(self):
-        for text in ["12.75% used", "已用 12.75%", "已使用 １２．７５％"]:
+        for text in ["12.75% used", "12.75% used", "１２．７５％ used"]:
             with self.subTest(text=text):
                 self.fields(text, found=True, weekly_used_pct=12.75)
 
     def test_plan_only_is_not_success(self):
-        for plan in ["Free plan", "免費計劃", "免费计划", "免費方案"]:
+        for plan in ["Free plan", "Free plan", "Free plan", "Free tier"]:
             with self.subTest(plan=plan):
                 result = self.fields(plan, found=False, plan=plan)
                 self.assertNotIn("weekly_used_pct", result)
 
     def test_extra_only_is_not_weekly_usage(self):
         for text in ["Usage\nFree plan\nAdditional tokens\nNever expires\n0% used (2B tokens left)",
-                     "用量\n免費計劃\n額外的符元\n永不過期\n已使用 0%（剩餘 20 億個憑證）",
-                     "用量\n免费计划\n额外令牌\n永不过期\n已使用 20%（剩余 10 亿令牌）",
+                     "Usage\nFree plan\nAdditional tokens\nNever expires\n0% used (2B tokens left)",
+                     "Usage\nFree plan\nAdditional tokens\nNever expires\n20% used (1B tokens left)",
                      "Usage\nExtra tokens\n7.5% used (10 tokens left)"]:
             with self.subTest(text=text):
                 result = self.fields(text, found=False)

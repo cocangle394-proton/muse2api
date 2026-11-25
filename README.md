@@ -8,20 +8,20 @@
   <img src="https://img.shields.io/badge/License-MIT-orange" alt="License" />
 </p>
 
-将 **[muse.ai](https://muse.ai/)** 网页端的前沿多模态能力逆向工程封装为标准的 **OpenAI 兼容 RESTful API**。通过无头浏览器 CDP 协议穿透、热备 WebSocket 隧道复用与动态 Session 管理，原生支持文本对话（2~3 秒级流式首字响应）、文生图、图生图编辑、文生视频、首帧图生视频，并提供多账号池亲和轮转、全自动 48 小时会话续期与云端 VM 唤醒保活，以及配套 Chrome 一键导号扩展。
+Reverse-engineers the cutting-edge multimodal capabilities of the **[muse.ai](https://muse.ai/)** web app into a standard **OpenAI-compatible RESTful API**. Via headless-browser CDP penetration, warm standby WebSocket tunnel reuse, and dynamic session management, it natively supports text chat (2-3 second streaming first-token response), text-to-image, image-to-image editing, text-to-video, and first-frame image-to-video, plus a multi-account pool with affinity rotation, fully automatic 48-hour session renewal and cloud VM wake-up keep-alive, and a companion Chrome one-click account-import extension.
 
 ---
 
-## 🎬 推荐：COOL AI — 电商 AI 视频与图片一站式创作
+## 🎬 Recommended: COOL AI — One-Stop AI Video & Image Creation for E-Commerce
 
-上传一张商品图，就能做出口播带货视频、剧情带货短剧和整套电商详情页。
+Upload a product photo and create spokesperson sales videos, story-driven sales skits, and a complete set of e-commerce detail pages.
 
-- **口播带货视频**：自动写脚本、分镜和台词，一键生成真人口播带货视频
-- **剧情带货视频**：反转短剧、对话短剧、剧情植入，自动编剧、分镜、出片
-- **电商详情图**：一张白底图，一键生成首图、场景图、卖点图、细节图、对比图整套
-- **AI 图片与工具**：商品精修、GIF 动图、数字人、字幕擦除、画质增强
+- **Spokesperson sales videos**: Automatically writes scripts, storyboards, and lines, and generates a real-person spokesperson sales video in one click
+- **Story-driven sales videos**: Plot-twist skits, dialogue skits, and story product placement, with automatic scripting, storyboarding, and production
+- **E-commerce detail images**: From a single white-background photo, generate a complete set in one click — hero image, scene image, selling-point image, detail image, and comparison image
+- **AI images & tools**: Product retouching, GIF animations, digital humans, subtitle removal, and image quality enhancement
 
-👉 立即体验：[www.coolai.mov](https://www.coolai.mov/?utm_source=github&utm_medium=readme&utm_campaign=muse2api)
+👉 Try it now: [www.coolai.mov](https://www.coolai.mov/?utm_source=github&utm_medium=readme&utm_campaign=muse2api)
 
 ### 🎬 Recommended: COOL AI — AI video & image studio for e-commerce
 
@@ -38,100 +38,100 @@ Upload one product photo and get talking-head sales videos, story-style ad short
 ---
 
 
-## v1.6.12 升级事项
+## v1.6.12 Upgrade Notes
 
-- **生成的图片恢复原图尺寸（#62）**：muse.ai 从 2026-11-19 起聊天里只显示约 498px 的缩略图，原图要点开图片查看器才会加载。图片任务现在会自动打开查看器取原图（实测 1344x1792）；取不到时仍返回缩略图，并在服务日志写一条提示。只更新服务即可，插件不用升级。
+- **Generated images restored to original size (#62)**: Since 2026-11-19, muse.ai chat only shows ~498px thumbnails; the original image only loads when you open the image viewer. Image tasks now automatically open the viewer to fetch the original (verified 1344x1792); if it cannot be fetched, the thumbnail is still returned and a note is written to the service log. Just update the service; the extension does not need an upgrade.
 
 Generated images are full size again (#62): image tasks open muse.ai's image viewer to fetch the original instead of the ~498px chat thumbnail. Update the service only; the extension is unchanged.
 
 
-## v1.6.11 升级事项
+## v1.6.11 Upgrade Notes
 
-- **扩展必须手动升级至 1.0.3**：先更新服务，从管理页下载本实例的扩展包，替换原扩展目录后在浏览器扩展管理页重新加载；不同浏览器个人资料分别升级。无痕/InPrivate 使用时，需允许扩展在无痕窗口运行。导入只表示保存登录态，请继续测试账号。
-- **检查更新不会自动改动代码或重启**：面板显示真实已安装版本和远端状态，由管理员手动确认升级；已有排队或运行任务时拒绝升级。镜像部署可设置 MUSE2API_MANAGED_DEPLOYMENT=1，通过重建镜像更新。
-- **排队与生成分开计时**：管理页可设置独立排队时限，默认 3600 秒，0 表示不限；图片长任务仍推荐异步任务接口。
-- **视频库使用缩略图**：源码部署需安装 FFmpeg；Docker 用户请重建镜像。仅更新 Python 源码不会为旧容器安装系统依赖。
+- **The extension must be manually upgraded to 1.0.3**: Update the service first, download this instance's extension package from the admin page, replace the original extension directory, then reload it on the browser extensions page; upgrade each browser profile separately. For Incognito/InPrivate use, allow the extension to run in incognito windows. Importing only means the login state was saved — please continue testing the account.
+- **Update checks do not automatically change code or restart**: The panel shows the real installed version and remote status, and an admin manually confirms the upgrade; upgrades are refused while tasks are queued or running. Image-based deployments can set MUSE2API_MANAGED_DEPLOYMENT=1 and update by rebuilding the image.
+- **Queueing and generation are timed separately**: The admin page can set an independent queue timeout, default 3600 seconds, 0 means unlimited; long image tasks are still recommended to use the async task API.
+- **The video library uses thumbnails**: Source deployments need FFmpeg installed; Docker users should rebuild the image. Updating only the Python source will not install system dependencies in an existing container.
 
 Extension 1.0.3 requires a manual reload in every browser profile. Update checks are read-only; confirm upgrades explicitly. Rebuild Docker images for FFmpeg thumbnail support.
 
 
-## 🌟 核心特性
+## 🌟 Core Features
 
-- 💬 **标准对话接口（Chat Completions & Responses API）**
-  - 完全兼容 `/v1/chat/completions` 与新版 Codex 默认使用的 `/v1/responses` 标准协议。
-  - 原生支持 SSE 流式打字机输出（`stream=True`）与同步完整返回，内置热标签页与 Noise WebSocket 隧道亲和复用，**连续对话首字延迟仅需 2~3 秒**。
-  - 支持多轮对话上下文、System Prompt 设定。
-  - 内置模型智能别名映射，`gpt-4o`、`gpt-5`、`claude-sonnet-4`、`deepseek-chat` 等常用模型名自动路由。
-- 🎨 **高质量生图与图像编辑（Images Generations & Edits）**
-  - 完全兼容 `/v1/images/generations`（文生图）与 `/v1/images/edits`（图生图/参考图编辑）接口。
-  - 支持 `1:1`、`16:9`、`9:16`、`4:3`、`3:4` 等多画幅生成，支持单图或多图参考直传与去水印纯净输出。
-  - 支持 `url` 直链或 `b64_json` 两种返回格式，内置纯文本拒答秒级快速检测，杜绝队列死锁。
-  - 图生图仅返回本次新生成的媒体：排除上传预览与历史附件，下载绑定选中的结果；参考图上传或提示词发送未确认时明确报错，不再静默返回原图。
-- 🎬 **文生视频 / 图生视频（Videos）**
-  - 原生对接 Muse 顶配视频生成模型，可传递 5 秒 / 6 秒 / 8 秒 / 10 秒的时长请求（实际成片时长以 Muse 上游输出为准）及 `9:16` 竖屏 / `16:9` 横屏视频生成。
-  - 支持上传单张首帧参考图，或通过 `images` 数组上传多张内容与风格参考图；多图模式以第一张作为主要起始画面。
-  - 异步任务架构（`/v1/videos` 创建任务 + `/v1/videos/{task_id}` 状态轮询）。
-  - 内置媒体资源服务 `/v1/media/{filename}`，自动持久化存储生成的 MP4 / WebP 资源。
-- ⚡ **真多账号并行并发（Multi-Account Parallel Execution）**
-  - 基于 Chromium 原生 `Target.createBrowserContext` 隐身隔离容器，多任务在独立沙箱中并发执行。
-  - 多账号同时生图、生视频、流式对话零互相阻塞，Cookie 与 Session 100% 隔离绝不串扰。
-  - 内置智能账号冲突调度器，同账号自动互斥防踩踏，多账号自动并行跑满。
-  - 可通过 `MUSE2API_CONCURRENCY` 随机器性能灵活调大并发上限（默认 2 并发）。
-- 🔄 **多账号池与热连接亲和调度**
-  - 支持导入无上限的 Muse 账号矩阵。
-  - 基于热连接亲和（Warm-Tab Affinity）与 LRU 策略智能分发，兼顾 2 秒级极速响应与多号均衡消耗。
-  - 遇到单号额度耗尽或会话异常时，自动标记并 0 秒无感故障转移至备用健康账号。
-- 🛡️ **会话状态检测与云端 VM 保活**
-  - 后台请求 `/api/session` 检查会话，并按需调用 `/api/hatch/vm/wake` 唤醒工作区；配置账号代理后，这些请求与浏览器使用同一出口。
-  - 只保存上游实际返回的 Cookie 和到期时间，不会因检测成功而虚增有效期。上游未续签、会话被撤销或账号受限时，仍需在官网确认并重新导入。
-- 🌐 **账号独立 HTTP / SOCKS5 代理**
-  - 每个账号可配置不同的 HTTP 或 SOCKS5 代理及认证信息，并发任务的浏览器上下文与会话请求按账号隔离；代理失败不会静默回退直连。
-- 🧩 **配套 Chrome 一键导号扩展**
-  - 无需手工 F12 抓包，点一下扩展图标即刻将当前浏览器登录态（含 `HttpOnly` 核心 Cookie 与真实过期时间）提取并安全推送至账号池。
-- 🖥️ **现代化深色运维面板（Web Console）与实时在线热升级**
-  - 内置开箱即用的 Web UI，支持实时查看服务健康度、账号池额度与状态、一键全池保活、任务进度回放、媒体库管理与在线接口调试。
-  - 媒体库的视频列表仅懒加载 JPEG 缩略图，点击封面或「打开」才加载该视频，关闭预览即释放播放器。缩略图由 FFmpeg 按需生成，缓存在 `data/thumbnails/`，删除媒体时同步清理；旧视频无需重新生成。Docker 镜像已包含 FFmpeg，手动部署需安装 `ffmpeg`；缺少依赖或视频损坏时显示播放占位，不会回退为预加载原视频。
-  - **全网节点实时更新广播与一键升级**：当官方 GitHub 仓库发布新版本或修复时，所有已部署节点的管理后台顶部会自动弹出更新通知横幅，点击 **「⚡ 一键在线升级并重启」** 即可自动拉取最新代码并平滑重启（自动保留本地 `.env` 配置与账号数据）。
+- 💬 **Standard Chat API (Chat Completions & Responses API)**
+  - Fully compatible with the `/v1/chat/completions` standard protocol and `/v1/responses`, which the new Codex uses by default.
+  - Natively supports SSE streaming typewriter output (`stream=True`) and synchronous full responses, with warm-tab and Noise WebSocket tunnel affinity reuse, **with only a 2-3 second first-token delay in continuous conversation**.
+  - Supports multi-turn conversation context and System Prompt settings.
+  - Built-in smart model alias mapping: common model names such as `gpt-4o`, `gpt-5`, `claude-sonnet-4`, and `deepseek-chat` are automatically routed.
+- 🎨 **High-Quality Image Generation & Editing (Images Generations & Edits)**
+  - Fully compatible with the `/v1/images/generations` (text-to-image) and `/v1/images/edits` (image-to-image / reference-image editing) APIs.
+  - Supports multiple aspect ratios such as `1:1`, `16:9`, `9:16`, `4:3`, and `3:4`, with single- or multi-reference direct upload and watermark-free clean output.
+  - Supports both `url` direct links and `b64_json` return formats, with built-in second-level fast detection of plain-text refusals to prevent queue deadlocks.
+  - Image-to-image returns only media newly generated in this run: upload previews and history attachments are excluded, and downloads are bound to the selected result; if a reference-image upload or prompt send is not confirmed, it errors explicitly instead of silently returning the original image.
+- 🎬 **Text-to-Video / Image-to-Video (Videos)**
+  - Natively connects to Muse's top-tier video generation model, accepting duration requests of 5 / 6 / 8 / 10 seconds (the actual finished video length follows Muse's upstream output) and `9:16` portrait / `16:9` landscape video generation.
+  - Supports uploading a single first-frame reference image, or uploading multiple content and style reference images via the `images` array; in multi-image mode, the first image is used as the main starting frame.
+  - Async task architecture (`/v1/videos` to create a task + `/v1/videos/{task_id}` status polling).
+  - Built-in media service `/v1/media/{filename}`, automatically persisting generated MP4 / WebP assets.
+- ⚡ **True Multi-Account Parallel Execution**
+  - Based on Chromium's native `Target.createBrowserContext` incognito isolation containers, multiple tasks run concurrently in separate sandboxes.
+  - Multiple accounts generating images, videos, and streaming chats at the same time never block each other; Cookie and Session are 100% isolated with no cross-talk.
+  - Built-in smart account-conflict scheduler: the same account is automatically mutually exclusive to prevent stampedes, while multiple accounts automatically run in parallel at full capacity.
+  - Use `MUSE2API_CONCURRENCY` to flexibly raise the concurrency limit to match machine performance (default 2 concurrent).
+- 🔄 **Multi-Account Pool & Warm-Connection Affinity Scheduling**
+  - Supports importing an unlimited matrix of Muse accounts.
+  - Smart distribution based on warm-connection affinity (Warm-Tab Affinity) and LRU strategy, balancing 2-second ultra-fast responses with balanced consumption across accounts.
+  - When a single account's quota is exhausted or its session fails, it is automatically marked and fails over to a healthy standby account in 0 seconds, seamlessly.
+- 🛡️ **Session State Detection & Cloud VM Keep-Alive**
+  - The background requests `/api/session` to check the session, and calls `/api/hatch/vm/wake` as needed to wake the workspace; after configuring an account proxy, these requests use the same egress as the browser.
+  - Only Cookies and expiry times actually returned by upstream are saved; a successful check will not inflate the validity period. If upstream does not renew, the session is revoked, or the account is restricted, you still need to confirm on the official site and re-import.
+- 🌐 **Per-Account Independent HTTP / SOCKS5 Proxy**
+  - Each account can be configured with a different HTTP or SOCKS5 proxy and authentication info; browser contexts and session requests for concurrent tasks are isolated per account; proxy failures do not silently fall back to a direct connection.
+- 🧩 **Companion Chrome One-Click Account-Import Extension**
+  - No manual F12 packet capture needed — click the extension icon once to instantly extract the current browser login state (including the `HttpOnly` core Cookie and real expiry time) and securely push it to the account pool.
+- 🖥️ **Modern Dark Ops Panel (Web Console) & Real-Time Online Hot Upgrade**
+  - Built-in out-of-the-box Web UI supporting real-time service health, account-pool quota and status, one-click keep-alive for the whole pool, task progress replay, media library management, and online API debugging.
+  - The video list in the media library only lazily loads JPEG thumbnails; a video is only loaded when you click its cover or "Open", and closing the preview releases the player. Thumbnails are generated on demand by FFmpeg and cached in `data/thumbnails/`; they are cleaned up together when media is deleted; old videos do not need to be regenerated. The Docker image already includes FFmpeg; manual deployments need to install `ffmpeg`; if the dependency is missing or a video is corrupted, a playback placeholder is shown and it will not fall back to preloading the original video.
+  - **Real-time update broadcasts across all nodes & one-click upgrade**: When the official GitHub repository releases a new version or fix, an update notification banner automatically pops up at the top of the admin backend on all deployed nodes; click **"⚡ One-Click Online Upgrade & Restart"** to automatically pull the latest code and restart smoothly (local `.env` configuration and account data are automatically preserved).
 
 ---
 
-## 🚀 极速部署
+## 🚀 Quick Deployment
 
-### 方式一：Docker Compose（推荐，一行命令开箱即用）
+### Option 1: Docker Compose (Recommended, one command out of the box)
 
-1. **克隆代码并进入目录**：
+1. **Clone the code and enter the directory**:
    ```bash
    git clone https://github.com/czg86389-hub/muse2api.git
    cd muse2api
    ```
 
-2. **配置环境变量（可选）**：
+2. **Configure environment variables (optional)**:
    ```bash
    cp .env.example .env
-   # 按需编辑 .env，建议修改 MUSE2API_KEY 为你自己的管理密钥
+   # Edit .env as needed; it is recommended to change MUSE2API_KEY to your own admin key
    ```
 
-   Docker Compose 会读取 `.env` 中的 `MUSE2API_KEY`，不会再被 Compose 文件中的示例值覆盖。
+   Docker Compose reads `MUSE2API_KEY` from `.env` and will no longer be overridden by the example value in the Compose file.
 
-3. **启动容器**：
+3. **Start the containers**:
    ```bash
    docker compose up -d
    ```
 
-4. **访问管理面板**：
-   打开浏览器访问：`http://<你的服务器IP>:18610/admin?key=<你的MUSE2API_KEY>`
+4. **Open the admin panel**:
+   Open your browser and visit: `http://<your-server-IP>:18610/admin?key=<your-MUSE2API_KEY>`
 
 ---
 
-### 方式二：裸机 / VPS 部署（Ubuntu / Debian）
+### Option 2: Bare Metal / VPS Deployment (Ubuntu / Debian)
 
-1. **安装系统依赖与 Chromium**：
+1. **Install system dependencies & Chromium**:
    ```bash
    sudo apt-get update
    sudo apt-get install -y chromium ffmpeg fonts-wqy-zenhei python3 python3-pip python3-venv
    ```
 
-2. **配置 Python 虚拟环境**：
+2. **Configure the Python virtual environment**:
    ```bash
    cd /opt/muse2api
    python3 -m venv venv
@@ -139,22 +139,22 @@ Extension 1.0.3 requires a manual reload in every browser profile. Update checks
    pip install -r requirements.txt
    ```
 
-3. **配置 systemd 服务**：
+3. **Configure the systemd service**:
    ```bash
    sudo cp deploy/muse2api.service /etc/systemd/system/
    sudo systemctl daemon-reload
    sudo systemctl enable --now muse2api
    ```
 
-4. **Nginx 反向代理配置（重要：防止 502 超时与流式卡顿）**：
-   如使用 Nginx / 宝塔 / 1Panel 反代，务必将 `proxy_read_timeout` 调大至 `600s` 并关闭 `proxy_buffering`（详见 `deploy/nginx.example.conf`）：
+4. **Nginx reverse proxy configuration (Important: prevent 502 timeouts and streaming stalls)**:
+   If you use Nginx / BaoTa / 1Panel as a reverse proxy, be sure to increase `proxy_read_timeout` to `600s` and disable `proxy_buffering` (see `deploy/nginx.example.conf` for details):
    ```nginx
    location / {
        proxy_pass http://127.0.0.1:18610;
-       proxy_read_timeout 600s;      # 避免生图/视频耗时较长被 Nginx 报 502 Bad Gateway
+       proxy_read_timeout 600s;      # Prevent Nginx from returning 502 Bad Gateway when image/video generation takes a long time
        proxy_send_timeout 600s;
-       proxy_buffering off;          # 保证 SSE 对话流式打字机 0 延迟吐字
-       client_max_body_size 200M;    # 支持视频/音频等大参考素材上传
+       proxy_buffering off;          # Ensure SSE chat streaming types out with 0 delay
+       client_max_body_size 200M;    # Support uploading large reference media such as video/audio
        proxy_set_header Host $host;
        proxy_set_header X-Real-IP $remote_addr;
        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -163,56 +163,56 @@ Extension 1.0.3 requires a manual reload in every browser profile. Update checks
 
 ---
 
-## 🧩 账号导入（Chrome 扩展 / 油猴脚本）
+## 🧩 Account Import (Chrome Extension / Tampermonkey Script)
 
-> **v1.6.6 用户请务必手动升级插件：Chrome/Edge 扩展最低 1.0.2，油猴脚本最低 1.1.2。**
-> 服务端更新不会自动替换已加载的扩展。下载本 Release 的 ZIP，覆盖原扩展目录文件，在 chrome://extensions / edge://extensions 点击“重新加载”；不同个人资料分别升级。弹窗标题旁应显示 **v1.0.2**。
-> [下载扩展 1.0.2](https://github.com/czg86389-hub/muse2api/releases/download/v1.6.6/muse2api-chrome-extension-v1.6.6.zip)。只有 hatch_sess 是导入必要项；hatch_vml 和 hatch_gw 缺失不能据此判定未登录。重新导入后再点击账号“测试”。
+> **v1.6.6 users must manually upgrade the extension: Chrome/Edge extension minimum 1.0.2, Tampermonkey script minimum 1.1.2.**
+> Server updates do not automatically replace an already-loaded extension. Download the ZIP from this Release, overwrite the files in the original extension directory, and click "Reload" at chrome://extensions / edge://extensions; upgrade each profile separately. **v1.0.2** should be shown next to the popup title.
+> [Download extension 1.0.2](https://github.com/czg86389-hub/muse2api/releases/download/v1.6.6/muse2api-chrome-extension-v1.6.6.zip). Only hatch_sess is required for import; missing hatch_vml and hatch_gw cannot be used to conclude you are not logged in. Re-import and then click "Test" on the account.
 >
 > **Manual extension upgrade required:** extension 1.0.2+ / userscript 1.1.2+. A server update does not upgrade unpacked extensions. Replace files in the original folder and click Reload, separately for every browser profile.
 
 
-### 方式 A：Chrome / Edge 扩展
-项目内置了专用 Chrome 导号扩展（目录位于 `extension/`），告别复杂的 F12 Cookie 提取：
+### Option A: Chrome / Edge Extension
+The project includes a dedicated Chrome account-import extension (located in the `extension/` directory), ending complex F12 Cookie extraction:
 
-1. 打开 Chrome / Edge 浏览器，访问 `chrome://extensions`，开启右上角的 **「开发者模式」**。
-2. 点击 **「加载已解压的扩展程序」**，选择本项目中的 `extension` 目录。
-3. 在该浏览器中登录 [muse.ai](https://muse.ai/) 至聊天主界面。
-4. 点击浏览器右上角插件图标，填入你的服务地址（例如 `http://1.2.3.4:18610`）和 `MUSE2API_KEY`。
-5. 点击 **「读取并导入」**，秒级同步入库！
+1. Open Chrome / Edge, visit `chrome://extensions`, and turn on **"Developer mode"** in the top right.
+2. Click **"Load unpacked"**, and select the `extension` directory in this project.
+3. In that browser, log in to [muse.ai](https://muse.ai/) to reach the main chat interface.
+4. Click the extension icon in the top right of the browser, and enter your service address (e.g. `http://1.2.3.4:18610`) and `MUSE2API_KEY`.
+5. Click **"Read & Import"** for second-level sync into the pool!
 
-### 方式 B：Tampermonkey 油猴脚本（跨浏览器免安装扩展）
-对于不想开启开发者模式或使用 Firefox / Safari 的用户，推荐直接使用油猴脚本一键安装：
+### Option B: Tampermonkey Script (cross-browser, no extension install needed)
+For users who do not want to enable Developer mode or who use Firefox / Safari, we recommend installing the Tampermonkey script in one click:
 
-👉 **[⚡ 点击一键安装油猴脚本 (Raw UserJS)](https://raw.githubusercontent.com/czg86389-hub/muse2api/main/tools/muse2api_cookie_importer.user.js)**
+👉 **[⚡ Click to install the Tampermonkey script (Raw UserJS)](https://raw.githubusercontent.com/czg86389-hub/muse2api/main/tools/muse2api_cookie_importer.user.js)**
 
-1. 在浏览器安装 [Tampermonkey](https://www.tampermonkey.net/) 插件。
-2. 点击上方 **「⚡ 点击一键安装油猴脚本」** 链接，Tampermonkey 将自动弹出安装窗口，点击「安装」即可（无需手动复制粘贴代码）。
-3. 打开 [muse.ai](https://muse.ai/) 网页，右下角将出现 **「⚡」** 悬浮图标，点击即可展开配置面板并一键推送入库（亦支持自动复制剪贴板兜底）。
+1. Install the [Tampermonkey](https://www.tampermonkey.net/) extension in your browser.
+2. Click the **"⚡ Click to install the Tampermonkey script"** link above; Tampermonkey will automatically pop up the install window — click "Install" (no need to manually copy and paste code).
+3. Open the [muse.ai](https://muse.ai/) website; a **"⚡"** floating icon will appear in the bottom right — click it to expand the configuration panel and push to the pool in one click (clipboard auto-copy fallback is also supported).
 
 ---
 
-## 📖 API 调用示例
+## 📖 API Usage Examples
 
-### 账号独立代理 / Per-account proxy
+### Per-Account Proxy
 
-在账号池点击账号旁的 **代理 / Proxy**：
+Click **Proxy** next to an account in the account pool:
 
-1. 选择 **指定代理 / Use a proxy**，直接粘贴完整链接，例如 `socks5://your-user:your-password@proxy.example.com:1080`。用户名和密码会自动解析；也可展开可选的手动认证项分开填写。
-2. 立即点击 **测试连通性 / Test connection**，无需先保存或重新打开窗口。结果分别显示代理连通性、出口 IP 与 Muse 会话状态；测试不同的未保存配置不会改变账号已保存的代理、健康状态或代理检测记录；测试内容与已保存代理一致时会更新该代理的检测记录。确认后再点击 **保存 / Save**，下次请求生效。
-3. 继续使用账号的 **测试 / Test** 按钮，确认浏览器能加载聊天输入框。会话验证成功不保证上游一定允许某次图片或视频生成。
+1. Select **Use a proxy**, and paste the full link directly, e.g. `socks5://your-user:your-password@proxy.example.com:1080`. The username and password are parsed automatically; you can also expand the optional manual authentication fields and fill them in separately.
+2. Click **Test connection** immediately, without saving or reopening the window first. The result shows proxy connectivity, egress IP, and Muse session status separately; testing a different unsaved configuration does not change the account's saved proxy, health status, or proxy detection record; if the tested content matches the saved proxy, that proxy's detection record is updated. Click **Save** after confirming, and it takes effect on the next request.
+3. Continue using the account's **Test** button to confirm the browser can load the chat input box. A successful session verification does not guarantee that upstream will allow a given image or video generation.
 
-支持 HTTP 代理端点（可选 Basic 认证）与 SOCKS5 代理端点（可选用户名/密码认证），例如 `http://proxy.example.com:8080`、`socks5://proxy.example.com:1080` 或 `socks5h://proxy.example.com:1080`。SOCKS5 的目标主机名经代理解析；HTTPS 网站照常支持。**HTTPS 代理端点、VLESS、VMess 与订阅链接暂不支持直接填写**；使用 Clash/Mihomo 等工具时，应填部署服务器可访问的 HTTP 或 SOCKS5 代理入口。`127.0.0.1:7890` 指的是部署服务器自身，不是导入 Cookie 的电脑。没有配置代理的旧账号保持原有网络行为。
+Supports HTTP proxy endpoints (optional Basic auth) and SOCKS5 proxy endpoints (optional username/password auth), e.g. `http://proxy.example.com:8080`, `socks5://proxy.example.com:1080`, or `socks5h://proxy.example.com:1080`. SOCKS5 target hostnames are resolved via the proxy; HTTPS sites work as usual. **HTTPS proxy endpoints, VLESS, VMess, and subscription links are not yet supported for direct entry**; when using tools such as Clash/Mihomo, enter the HTTP or SOCKS5 proxy entry point accessible to the deployment server. `127.0.0.1:7890` refers to the deployment server itself, not the computer that imported the Cookie. Old accounts without a configured proxy keep their original network behavior.
 
-聊天、生图、视频、浏览器下载、账号检测、额度查询、会话续签与 VM 唤醒使用账号代理。代理断线、认证失败或浏览器上下文创建失败会报告错误，**不会静默回退直连**。账号切换同时切换代理。外部参考图在账号选取前按现有安全策略预取，继续执行公网地址、重定向与 DNS 重绑定防护，不承诺任意参考图 URL 都通过账号代理。
+Chat, image generation, video, browser downloads, account detection, quota queries, session renewal, and VM wake-up use the account proxy. Proxy disconnection, authentication failure, or browser context creation failure will report an error and **will not silently fall back to a direct connection**. Switching accounts also switches the proxy. External reference images are prefetched before account selection under the existing security policy, continuing to enforce public-address, redirect, and DNS rebinding protections; there is no promise that every reference-image URL goes through the account proxy.
 
-账号忙碌时修改代理会返回 HTTP 409，请等待当前任务结束。修改后，下次请求会重建连接，不复用旧节点。代理连通性与账号会话是不同状态：HTTP 407、连接超时不会直接把 Cookie 标成失效；代理测试也不会覆盖账号已有的认证结果。
+Modifying the proxy while an account is busy returns HTTP 409; please wait for the current task to finish. After modification, the next request rebuilds the connection and does not reuse the old node. Proxy connectivity and account session are different states: HTTP 407 and connection timeouts do not directly mark a Cookie as invalid; proxy tests also do not overwrite an account's existing authentication result.
 
-完整链接中的认证信息优先于手动认证字段；用户名或密码中的 `@`、`#`、`/` 等特殊字符应使用 URL 百分号编码。保存后地址规范化为不含认证信息的形式，重新打开不会回显密码。
+Authentication info in a full link takes precedence over manual authentication fields; special characters such as `@`, `#`, and `/` in a username or password should be URL percent-encoded. After saving, the address is normalized to a form without authentication info, and reopening it will not echo the password.
 
-代理密码与 Cookie 一起保存在本机 `data/accounts.json`，应保护此目录及备份。接口、日志和页面不回显密码。修改时地址与用户名不变，密码留空表示保留；改变地址或用户名时应重新输入认证密码。选择 **默认网络 / Default network** 或 **移除代理 / Remove proxy** 清除配置并恢复默认网络。
+Proxy passwords are stored locally together with Cookies in `data/accounts.json`; protect this directory and its backups. APIs, logs, and pages do not echo passwords. When editing, if the address and username are unchanged, leaving the password blank means keep it; if the address or username changes, re-enter the authentication password. Select **Default network** or **Remove proxy** to clear the configuration and restore the default network.
 
-管理 API 示例（需鉴权）：
+Admin API examples (authentication required):
 
 ```http
 PATCH /admin/accounts/{account_id}
@@ -228,31 +228,31 @@ Authorization: Bearer <MUSE2API_KEY>
 }
 ```
 
-省略 `proxy` 不修改设置；提交 `{"proxy": null}` 移除代理。`POST /admin/accounts` 也接受同一 `proxy` 对象，包括为本次批量导入设置相同代理。响应仅包含服务器、用户名和 `has_password`，不返回密码。
+Omitting `proxy` leaves the setting unchanged; submitting `{"proxy": null}` removes the proxy. `POST /admin/accounts` also accepts the same `proxy` object, including setting the same proxy for this bulk import. The response only includes the server, username, and `has_password`, and does not return the password.
 
 ```http
 POST /admin/accounts/{account_id}/proxy/test
 Authorization: Bearer <MUSE2API_KEY>
 ```
 
-不带请求体时测试已保存代理。要测试尚未保存的代理，发送 `Content-Type: application/json` 和 `{"proxy":{"server":"socks5://your-user:your-password@proxy.example.com:1080"}}`；`server` 同样支持完整 HTTP/SOCKS5h 链接，旧版分栏认证仍兼容。响应 `tested_saved_proxy=false` 表示测试内容不同于当前保存代理，账号保存内容不变；为 `true` 时会更新当前代理的检测记录。
+Testing without a request body tests the saved proxy. To test a proxy that has not been saved yet, send `Content-Type: application/json` and `{"proxy":{"server":"socks5://your-user:your-password@proxy.example.com:1080"}}`; `server` also supports full HTTP/SOCKS5h links, and the legacy split-field authentication remains compatible. A response of `tested_saved_proxy=false` means the tested content differs from the currently saved proxy and the account's saved content is unchanged; when `true`, the current proxy's detection record is updated.
 
-从 1.6.8 升级后，之前未保存检测结果的账号需要重新点击一次“测试连通性”。空记录会显示“代理未测试”，完成实际检测后才显示“代理已连通”或“代理未通过”，不会自动将未知状态标成成功。
+After upgrading from 1.6.8, accounts that previously had no saved detection result need to click "Test connection" once again. An empty record shows "Proxy not tested"; only after an actual test is completed does it show "Proxy connected" or "Proxy failed", and an unknown status is not automatically marked as successful.
 
-先测试再保存时，服务端可沿用当前进程内 5 分钟内的实测记录；必须是同一账号、相同节点与认证、相同登录 Cookie。改动配置、换 Cookie、过期或服务重启后不会沿用旧成功。只复用实际结果，测试失败不会被改成成功；这不代表账号浏览器或生成能力已验证。
+When testing before saving, the server may reuse a measured record from the current process within 5 minutes; it must be the same account, same node and authentication, and same login Cookie. Changing the configuration, changing the Cookie, expiry, or a service restart means the old success is not reused. Only actual results are reused; a failed test is not turned into a success; this does not mean the account's browser or generation capability has been verified.
 
-该测试通过所选代理访问无 Cookie 的 HTTPS 出口检测，再验证 Muse 会话；返回的 `proxy_reachable`、`exit_ip`、`session_ok` 与 `workspace_status` 分别表示各层结果。既无临时配置又无已保存代理时返回 400，账号忙碌时返回 409。此操作不生成内容，也不消耗图片/视频生成额度。
+This test accesses a cookie-free HTTPS egress check via the selected proxy, then verifies the Muse session; the returned `proxy_reachable`, `exit_ip`, `session_ok`, and `workspace_status` represent the results at each layer. If there is neither a temporary configuration nor a saved proxy, it returns 400; if the account is busy, it returns 409. This operation does not generate content and does not consume image/video generation quota.
 
 **English:** Each account can use its own HTTP proxy with optional Basic authentication or a SOCKS5 proxy with optional username/password authentication. Select **Use a proxy**, paste a full URL such as `socks5://your-user:your-password@proxy.example.com:1080`, and click **Test connection** immediately. Saving and reopening are not required. Tests of a different unsaved route leave the saved route, account health and saved test status unchanged. Testing the exact saved configuration updates its connectivity record; click **Save** separately to apply the route. Manual credential fields remain optional. Credentials in the URL take precedence; percent-encode special characters. Both `socks5://` and `socks5h://` proxy origins are accepted, and target hostnames are resolved by the proxy. HTTPS sites are supported; HTTPS proxy endpoints, VLESS/VMess and subscription URLs are not supported directly. The proxy address must be reachable from the deployment server. A proxy failure never falls back to direct access. Unconfigured accounts retain their existing network behavior. Active accounts cannot change proxies (HTTP 409); the next request recreates the context after a saved change. Keep the password blank only to preserve it with an unchanged server and username. Neither API responses nor logs expose it. Saving the exact configuration may adopt a server-observed result from the last five minutes in the same process, bound to the account, route, credentials and cookies. Changed/expired inputs never inherit success, and failed results remain failed. The test API accepts an optional `{"proxy":{"server":"socks5://your-user:your-password@proxy.example.com:1080"}}` body for a draft test; an empty body retains saved-proxy testing. The proxy test reports connectivity, egress IP and Muse session status separately; it does not prove generation capability or replace the account's browser test.
 
 ---
 
-所有受保护接口均需在 Header 中携带：
+All protected endpoints require this in the Header:
 ```http
-Authorization: Bearer <你的MUSE2API_KEY>
+Authorization: Bearer <your-MUSE2API_KEY>
 ```
 
-### 1. 对话补全（Chat Completions）
+### 1. Chat Completions
 
 ```bash
 curl -X POST "http://localhost:18610/v1/chat/completions" \
@@ -261,13 +261,13 @@ curl -X POST "http://localhost:18610/v1/chat/completions" \
   -d '{
     "model": "muse-spark",
     "messages": [
-      {"role": "user", "content": "写一首关于赛博朋克与霓虹夜雨的七言绝句"}
+      {"role": "user", "content": "Write a seven-character quatrain about cyberpunk and neon night rain"}
     ],
     "stream": false
   }'
 ```
 
-### 2. 文生图（Image Generation）
+### 2. Text-to-Image (Image Generation)
 
 ```bash
 curl -X POST "http://localhost:18610/v1/images/generations" \
@@ -275,19 +275,19 @@ curl -X POST "http://localhost:18610/v1/images/generations" \
   -H "Content-Type: application/json" \
   -d '{
     "model": "muse-image",
-    "prompt": "一只穿着反重力宇航服的机械柴犬，电影级光影，8k分辨率",
+    "prompt": "A mechanical Shiba Inu wearing an anti-gravity spacesuit, cinematic lighting, 8k resolution",
     "size": "16:9",
     "response_format": "url"
   }'
 ```
 
-**响应示例**：
+**Response example**:
 ```json
 {
   "created": 1790148495,
   "data": [
     {
-      "revised_prompt": "一只穿着反重力宇航服的机械柴犬，电影级光影，8k分辨率",
+      "revised_prompt": "A mechanical Shiba Inu wearing an anti-gravity spacesuit, cinematic lighting, 8k resolution",
       "url": "http://localhost:18610/v1/media/img_abc123.webp",
       "kind": "image",
       "bytes": 54210
@@ -296,7 +296,7 @@ curl -X POST "http://localhost:18610/v1/images/generations" \
 }
 ```
 
-多图参考使用 `images` 数组（最多 10 个素材；单个不超过 40 MiB、合计不超过 100 MiB，详见下方「参考素材」）；服务会按数组顺序逐张上传，并在全部附件得到网页确认后才发送提示词。`images` 不可与 `image` / `reference_image` 等旧版单图字段混用：
+Use the `images` array for multi-image references (up to 10 assets; each no more than 40 MiB, 100 MiB in total — see "Reference Materials" below); the service uploads them one by one in array order, and only sends the prompt after all attachments have been confirmed by the web page. `images` cannot be mixed with legacy single-image fields such as `image` / `reference_image`:
 
 ```bash
 curl -X POST "http://localhost:18610/v1/images/generations" \
@@ -304,7 +304,7 @@ curl -X POST "http://localhost:18610/v1/images/generations" \
   -H "Content-Type: application/json" \
   -d '{
     "model": "muse-image",
-    "prompt": "结合第一张图的主体与第二张图的配色生成海报",
+    "prompt": "Combine the subject of the first image with the color palette of the second image to generate a poster",
     "images": [
       {"url": "https://example.com/subject.png"},
       {"url": "https://example.com/style.png"}
@@ -313,38 +313,38 @@ curl -X POST "http://localhost:18610/v1/images/generations" \
   }'
 ```
 
-`/v1/images/edits` 的 multipart 请求可以重复提交同名的 `image` 字段：
+A multipart request to `/v1/images/edits` can repeatedly submit the `image` field with the same name:
 
 ```bash
 curl -X POST "http://localhost:18610/v1/images/edits" \
   -H "Authorization: Bearer m2a_your_secret_key" \
-  -F "prompt=结合两张参考图生成一张新图" \
+  -F "prompt=Generate a new image combining the two reference images" \
   -F "image=@subject.png" \
   -F "image=@style.png"
 ```
 
-### 3. 文生视频 / 图生视频（Videos）
+### 3. Text-to-Video / Image-to-Video (Videos)
 
-- **第一步：创建生成任务**
+- **Step 1: Create a generation task**
   ```bash
   curl -X POST "http://localhost:18610/v1/videos" \
     -H "Authorization: Bearer m2a_your_secret_key" \
     -H "Content-Type: application/json" \
     -d '{
-      "prompt": "金色的枫叶在微风中轻盈飘落，阳光穿透树梢",
+      "prompt": "Golden maple leaves drift lightly in the breeze, sunlight filtering through the treetops",
       "duration": 5,
       "size": "16:9"
     }'
   ```
-  返回任务 ID：`{"id": "task_xyz789", "status": "queued"}`
+  Returns the task ID: `{"id": "task_xyz789", "status": "queued"}`
 
-  多图参考视频在同一个请求中使用有序的 `images` 数组；这里支持的是多张图片作为视频参考，不支持上传视频文件作为参考：
+  Multi-image reference videos use an ordered `images` array in the same request; this supports multiple images as video references — uploading video files as references is not supported:
   ```bash
   curl -X POST "http://localhost:18610/v1/videos" \
     -H "Authorization: Bearer m2a_your_secret_key" \
     -H "Content-Type: application/json" \
     -d '{
-      "prompt": "让第一张图的主体在第二张图的场景与配色中运动",
+      "prompt": "Let the subject of the first image move in the scene and color palette of the second image",
       "images": [
         {"url": "https://example.com/start.png"},
         {"url": "https://example.com/style.png"}
@@ -354,12 +354,12 @@ curl -X POST "http://localhost:18610/v1/images/edits" \
     }'
   ```
 
-- **第二步：轮询任务进度**
+- **Step 2: Poll task progress**
   ```bash
   curl "http://localhost:18610/v1/videos/task_xyz789" \
     -H "Authorization: Bearer m2a_your_secret_key"
   ```
-  完成时返回：
+  Returns when complete:
   ```json
   {
     "id": "task_xyz789",
@@ -373,27 +373,27 @@ curl -X POST "http://localhost:18610/v1/images/edits" \
 
 ---
 
-## 🎞️ 参考素材：图片 / 视频 / 音频 / 文档
+## 🎞️ Reference Materials: Images / Videos / Audio / Documents
 
-生图、图像编辑、图片任务与视频接口都可以附带参考素材，限制与 muse.ai 网页端一致：
+Image generation, image editing, image tasks, and video endpoints can all include reference materials, with limits matching the muse.ai web app:
 
-| 项目 | 限制 |
+| Item | Limit |
 |---|---|
-| 数量 | 每次最多 10 个（所有字段合计） |
-| 单个大小 | 40 MiB；合计 100 MiB |
-| 图片 | jpg / png / gif / webp / heic / heif / avif |
-| 视频 | mp4 / mov / webm / 3gp，时长不超过 120 秒（mp4/mov 会预先校验） |
-| 音频 | mp3 / wav / m4a / ogg / flac / aac / opus |
-| 文档 | pdf / doc / docx |
+| Count | Up to 10 per request (all fields combined) |
+| Single size | 40 MiB; 100 MiB in total |
+| Images | jpg / png / gif / webp / heic / heif / avif |
+| Videos | mp4 / mov / webm / 3gp, no longer than 120 seconds (mp4/mov are pre-validated) |
+| Audio | mp3 / wav / m4a / ogg / flac / aac / opus |
+| Documents | pdf / doc / docx |
 
-- JSON 字段：`images`（可混放任意素材）、`videos`、`audios`、`files`，按此顺序依次上传；每项可以是 URL、Data URL、Base64，或 `{"url": ...}` / `{"video_url": ...}` / `{"audio_url": ...}` 对象。
-- 类型取 Data URL / 响应头 / multipart 声明的 MIME；声明为空或 `application/octet-stream` 时按文件头识别。
-- `/v1/images/edits` 的 multipart 可重复提交 `image`、`video`、`audio`、`file` 字段。
-- 视频任务若第一个素材是图片，以它作为主要起始画面；成品绝不会是本次上传的素材本身（按内容哈希排除）。
+- JSON fields: `images` (any material can be mixed in), `videos`, `audios`, `files`, uploaded in this order; each item can be a URL, Data URL, Base64, or an object such as `{"url": ...}` / `{"video_url": ...}` / `{"audio_url": ...}`.
+- The type is taken from the Data URL / response header / multipart-declared MIME; when the declaration is empty or `application/octet-stream`, it is identified from the file header.
+- Multipart for `/v1/images/edits` can repeatedly submit the `image`, `video`, `audio`, and `file` fields.
+- For a video task, if the first asset is an image, it is used as the main starting frame; the finished product will never be one of the assets uploaded in this run (excluded by content hash).
 
 ```bash
 curl -X POST "http://localhost:18610/v1/videos"   -H "Authorization: Bearer m2a_your_secret_key"   -H "Content-Type: application/json"   -d '{
-    "prompt": "参考视频的运镜节奏，配合音频的情绪，生成一段新的城市夜景",
+    "prompt": "Based on the camera movement of the reference video and the mood of the audio, generate a new city nightscape",
     "videos": [{"url": "https://example.com/ref.mp4"}],
     "audios": [{"url": "https://example.com/bgm.mp3"}],
     "duration": 8,
@@ -401,37 +401,37 @@ curl -X POST "http://localhost:18610/v1/videos"   -H "Authorization: Bearer m2a_
   }'
 ```
 
-Nginx 反代需把 `client_max_body_size` 调到 200M 左右，否则大素材会被 413 拒绝。
+Nginx reverse proxy needs `client_max_body_size` set to around 200M, otherwise large assets will be rejected with 413.
 
 ---
 
-## ⚙️ 环境变量配置一览
+## ⚙️ Environment Variables
 
-| 变量名 | 默认值 | 作用与说明 |
+| Variable | Default | Description |
 |---|---|---|
-| `MUSE2API_KEY` | 自动生成 | 管理控制台与 API 鉴权密钥（以 `m2a_` 开头） |
-| `MUSE2API_HOST` | `127.0.0.1` | 监听 IP（Docker 内建议 `0.0.0.0`） |
-| `MUSE2API_PORT` | `18610` | 服务运行端口 |
-| `MUSE2API_PUBLIC_BASE` | `空` | 对外完整 URL 前缀，留空时前端自动识别访问来源 |
-| `MUSE2API_CHROMIUM` | `chromium` | 浏览器可执行程序完整路径 |
-| `MUSE2API_CDP_PORT` | `19210` | 内部 CDP 调试通信端口 |
-| `MUSE2API_CONCURRENCY` | `2` | 最大并发生成任务数（支持随服务器资源自由调高，默认 2） |
-| `MUSE2API_IMAGE_TIMEOUT` | `240` | 生图超时上限（秒） |
-| `MUSE2API_VIDEO_TIMEOUT` | `600` | 生视频超时上限（秒） |
-| `MUSE2API_CHAT_TIMEOUT` | `300` | 对话生成超时上限（秒） |
-| `MUSE2API_BUSY_RETRIES` | `3` | muse.ai 回复“视频/图片服务过载、503、暂时不可用”时额外重试的次数（0 = 不重试）；拒绝生成、地区不支持、额度不足不重试 |
-| `MUSE2API_BUSY_RETRY_DELAY` | `20` | 上述重试前的等待秒数 |
-| `MUSE2API_BUSY_RETRY_MIN_REMAINING` | `180` | 剩余生成时限少于该秒数（加等待时间）时不再重试，直接返回失败 |
-| `MUSE2API_VIDEO_HEDGE` | `1` | muse.ai 最近出现过“过载/503”时，视频同时在 2 个空闲账号上生成，先出片者为准，另一路立即取消；设为 `0` 关闭。只影响视频，且要求至少 2 个空闲账号和 1 个空闲并发槽位 |
-| `MUSE2API_VIDEO_HEDGE_WINDOW` | `1200` | 最近一次过载回复后多少秒内保持并行模式（重启后会从最近的任务记录恢复） |
-| `MUSE2API_VIDEO_HEDGE_LEASE_TIMEOUT` | `5` | 第二路等待空闲账号的最长秒数，等不到就只跑一路 |
-| `MUSE2API_REF_IMAGE_LOCAL_FILES` | `0` | 默认禁止读取服务器本地路径；仅可信单用户部署可显式设为 `1` 恢复 |
-| `MUSE2API_REF_IMAGE_PRIVATE_FETCH` | `0` | 默认仅允许公网 URL，并逐跳检查 DNS/重定向、固定已检查 IP、不使用环境代理；显式设为 `1` 才允许私网/本机 URL |
+| `MUSE2API_KEY` | Auto-generated | Admin console and API authentication key (starting with `m2a_`) |
+| `MUSE2API_HOST` | `127.0.0.1` | Listen IP (inside Docker, `0.0.0.0` is recommended) |
+| `MUSE2API_PORT` | `18610` | Service port |
+| `MUSE2API_PUBLIC_BASE` | `Empty` | Full public URL prefix; when empty, the frontend automatically detects the access origin |
+| `MUSE2API_CHROMIUM` | `chromium` | Full path to the browser executable |
+| `MUSE2API_CDP_PORT` | `19210` | Internal CDP debug communication port |
+| `MUSE2API_CONCURRENCY` | `2` | Maximum number of concurrent generation tasks (can be freely raised to match server resources, default 2) |
+| `MUSE2API_IMAGE_TIMEOUT` | `240` | Image generation timeout limit (seconds) |
+| `MUSE2API_VIDEO_TIMEOUT` | `600` | Video generation timeout limit (seconds) |
+| `MUSE2API_CHAT_TIMEOUT` | `300` | Chat generation timeout limit (seconds) |
+| `MUSE2API_BUSY_RETRIES` | `3` | Extra retries when muse.ai replies "video/image service overloaded, 503, temporarily unavailable" (0 = no retry); generation refusals, unsupported regions, and insufficient quota are not retried |
+| `MUSE2API_BUSY_RETRY_DELAY` | `20` | Wait in seconds before the above retries |
+| `MUSE2API_BUSY_RETRY_MIN_REMAINING` | `180` | Stop retrying and return failure directly when the remaining generation time limit is less than this many seconds (plus the wait time) |
+| `MUSE2API_VIDEO_HEDGE` | `1` | When muse.ai has recently returned "overloaded/503", generate a video on 2 idle accounts at the same time; the first to finish wins and the other is cancelled immediately; set to `0` to disable. Only affects videos, and requires at least 2 idle accounts and 1 idle concurrency slot |
+| `MUSE2API_VIDEO_HEDGE_WINDOW` | `1200` | How many seconds after the most recent overload reply to keep parallel mode (restored from the most recent task records after a restart) |
+| `MUSE2API_VIDEO_HEDGE_LEASE_TIMEOUT` | `5` | Maximum seconds the second lane waits for an idle account; if none becomes available, only one lane runs |
+| `MUSE2API_REF_IMAGE_LOCAL_FILES` | `0` | Reading server-local paths is disabled by default; only trusted single-user deployments may explicitly set this to `1` to restore it |
+| `MUSE2API_REF_IMAGE_PRIVATE_FETCH` | `0` | Only public URLs are allowed by default, with per-hop DNS/redirect checks, pinning the checked IP, and no environment proxy; explicitly set to `1` to allow private/local URLs |
 
-两个开关默认均为 `0`：所有生图、图像编辑、图片任务及视频接口都禁止服务器本地路径和私网/本机 URL。Data URL、有效 Base64 和公网 URL 正常使用。只有确认调用方可信且确有需要时，才显式设为 `1` 恢复对应旧能力。
-策略拒绝、下载失败、MIME 或大小不合规都会在提交任务前返回 HTTP 400，不会创建一个随后才失败的后台任务。
+Both switches default to `0`: all image generation, image editing, image tasks, and video endpoints prohibit server-local paths and private/local URLs. Data URLs, valid Base64, and public URLs work normally. Only set them explicitly to `1` to restore the corresponding legacy capability when you have confirmed the caller is trusted and it is actually needed.
+Policy rejections, download failures, and non-compliant MIME or size will return HTTP 400 before a task is submitted, and will not create a background task that only fails later.
 
-参考图安全回归检查（模拟 DNS 和 HTTP，无真实网络或账号）：
+Reference-image security regression check (simulated DNS and HTTP, no real network or account):
 
 ```bash
 python tests/test_ref_image_safety.py
@@ -439,114 +439,114 @@ python tests/test_ref_image_safety.py
 
 ---
 
-## 🔒 安全与隐私声明
+## 🔒 Security & Privacy Statement
 
-- **零数据外泄**：本软件全部数据（包括账号凭据、任务队列、媒体文件）均持久化在本地 `data/` 目录中，不依赖任何第三方遥测或外部中转服务。
-- **开源合规**：本项目仅供技术交流、系统自动化运维研究与自动化测试。请勿将本项目用于违反 Meta 平台服务条款或任何国家法律法规之用途。
-
----
-
-## 👥 贡献者致谢 (Contributors)
-
-感谢以下开发者对 MUSE2API 的代码贡献与功能优化（按 PR 合入顺序排列）：
-
-- 🌟 **[@cpt-kenvie](https://github.com/cpt-kenvie)** (PR [#2](https://github.com/czg86389-hub/muse2api/pull/2)) —— 修复 Docker Compose 读取 `.env` 环境变量与示例配置覆盖问题
-- 🌟 **[@djs-91](https://github.com/djs-91)** (PR [#9](https://github.com/czg86389-hub/muse2api/pull/9)) —— 修复未配置 `MUSE2API_PUBLIC_BASE` 时 Base URL 坍缩导致管理页地址解析异常
-- 🌟 **[@toby-bridges](https://github.com/toby-bridges)** (PR [#8](https://github.com/czg86389-hub/muse2api/pull/8)) —— 适配 muse.ai 现网中文 UI、修复附件上传确认与 Stop 状态误判、强化视频成品与封面防误选
-- 🌟 **[@LF2023](https://github.com/LF2023)** (PR [#18](https://github.com/czg86389-hub/muse2api/pull/18)) —— 修复视频生成仅凭 tid 命中封面静帧问题，规范预期匹配与防误选机制
-- 🌟 **[@wuliaolaozi](https://github.com/wuliaolaozi)** (PR [#27](https://github.com/czg86389-hub/muse2api/pull/27)) —— 适配中英文额度查询，修复额度读取与管理页错误提示
-- 🌟 **[@CarloCPP](https://github.com/CarloCPP)** (PR [#6](https://github.com/czg86389-hub/muse2api/pull/6), [#26](https://github.com/czg86389-hub/muse2api/pull/26)) —— 贡献 Tampermonkey 油猴一键导号脚本、放宽必要 Cookie 校验至 session 凭证与一键安装
-- 🌟 **[@gr219](https://github.com/gr219)** (PR [#31](https://github.com/czg86389-hub/muse2api/pull/31)) —— 为管理后台及 Chrome 扩展提供中英文国际化双语动态切换支持
-- 🌟 **[@Yeadon8888](https://github.com/Yeadon8888)** (PR [#32](https://github.com/czg86389-hub/muse2api/pull/32)) —— 增加有序多参考图生图、编辑与图生视频支持
-- 🌟 **[@pandalaohe](https://github.com/pandalaohe)** (PR [#24](https://github.com/czg86389-hub/muse2api/pull/24)) —— 提供参考图本地文件与私网 URL 安全策略、重定向复查和 DNS 重绑定防护
-- 🌟 **[@QuartzWarrior](https://github.com/QuartzWarrior)** (PR [#25](https://github.com/czg86389-hub/muse2api/pull/25)) —— 贡献账号独立 HTTP 代理基础、认证转接、配置界面与隔离回归测试
-- [@Roins-hub](https://github.com/Roins-hub)：新版 Muse 输入区兼容、视频/音频/文档参考素材（PR #40）。
-
-- [@WXJJ0520](https://github.com/WXJJ0520)：限定当前输入区域的发送按钮，修复侧栏历史误匹配并增加真实 Chromium 回归（PR [#48](https://github.com/czg86389-hub/muse2api/pull/48)）。
-
-- [@Yeadon8888](https://github.com/Yeadon8888)：保留未分配会话响应中的 Cookie 轮换，避免后续继续使用失效旧值（PR [#60](https://github.com/czg86389-hub/muse2api/pull/60)）。
-- [@ALight777](https://github.com/ALight777)：当前窗口 Cookie 存储区隔离、独立排队预算、真实版本报告与只读更新检查、视频缩略图（PR [#58](https://github.com/czg86389-hub/muse2api/pull/58)、[#55](https://github.com/czg86389-hub/muse2api/pull/55)、[#57](https://github.com/czg86389-hub/muse2api/pull/57)、[#51](https://github.com/czg86389-hub/muse2api/pull/51)）。
-
-欢迎大家提交 PR 与 Issue，共同把项目打磨得更强更好用！
+- **Zero data leaks**: All data in this software (including account credentials, task queues, and media files) is persisted locally in the `data/` directory, with no reliance on any third-party telemetry or external relay service.
+- **Open-source compliance**: This project is for technical exchange, system automation operations research, and automated testing only. Do not use this project for any purpose that violates Meta's platform Terms of Service or any national laws or regulations.
 
 ---
 
-## 📄 开源许可证
+## 👥 Contributor Thanks (Contributors)
 
-本项目基于 [MIT License](LICENSE) 开源发布。
+Thank the following developers for their code contributions and feature improvements to MUSE2API (in PR merge order):
+
+- 🌟 **[@cpt-kenvie](https://github.com/cpt-kenvie)** (PR [#2](https://github.com/czg86389-hub/muse2api/pull/2)) — Fixed Docker Compose reading `.env` environment variables and the example configuration override issue
+- 🌟 **[@djs-91](https://github.com/djs-91)** (PR [#9](https://github.com/czg86389-hub/muse2api/pull/9)) — Fixed Base URL collapsing when `MUSE2API_PUBLIC_BASE` is not configured, causing admin page address parsing errors
+- 🌟 **[@toby-bridges](https://github.com/toby-bridges)** (PR [#8](https://github.com/czg86389-hub/muse2api/pull/8)) — Adapted to muse.ai's live Chinese UI, fixed attachment upload confirmation and Stop status misjudgement, and strengthened video output and cover anti-misselection
+- 🌟 **[@LF2023](https://github.com/LF2023)** (PR [#18](https://github.com/czg86389-hub/muse2api/pull/18)) — Fixed video generation matching a cover still frame by tid alone, and standardized expected matching and anti-misselection mechanisms
+- 🌟 **[@wuliaolaozi](https://github.com/wuliaolaozi)** (PR [#27](https://github.com/czg86389-hub/muse2api/pull/27)) — Adapted bilingual (Chinese/English) quota queries, and fixed quota reading and admin page error messages
+- 🌟 **[@CarloCPP](https://github.com/CarloCPP)** (PR [#6](https://github.com/czg86389-hub/muse2api/pull/6), [#26](https://github.com/czg86389-hub/muse2api/pull/26)) — Contributed the Tampermonkey one-click account-import script, relaxed the required Cookie check to session credentials, and one-click installation
+- 🌟 **[@gr219](https://github.com/gr219)** (PR [#31](https://github.com/czg86389-hub/muse2api/pull/31)) — Added bilingual (Chinese/English) i18n dynamic switching for the admin backend and Chrome extension
+- 🌟 **[@Yeadon8888](https://github.com/Yeadon8888)** (PR [#32](https://github.com/czg86389-hub/muse2api/pull/32)) — Added ordered multi-reference image generation, editing, and image-to-video support
+- 🌟 **[@pandalaohe](https://github.com/pandalaohe)** (PR [#24](https://github.com/czg86389-hub/muse2api/pull/24)) — Provided reference-image local file and private URL security policies, redirect re-checks, and DNS rebinding protection
+- 🌟 **[@QuartzWarrior](https://github.com/QuartzWarrior)** (PR [#25](https://github.com/czg86389-hub/muse2api/pull/25)) — Contributed per-account independent HTTP proxy basics, authentication handover, configuration UI, and isolation regression tests
+- [@Roins-hub](https://github.com/Roins-hub): New Muse input-area compatibility, video/audio/document reference materials (PR #40).
+
+- [@WXJJ0520](https://github.com/WXJJ0520): Scoped the send button to the current input area, fixed sidebar history mismatches, and added real Chromium regression tests (PR [#48](https://github.com/czg86389-hub/muse2api/pull/48)).
+
+- [@Yeadon8888](https://github.com/Yeadon8888): Kept Cookie rotation in unassigned session responses, avoiding continued use of expired old values (PR [#60](https://github.com/czg86389-hub/muse2api/pull/60)).
+- [@ALight777](https://github.com/ALight777): Current-window Cookie storage isolation, independent queue budgets, real version reporting and read-only update checks, video thumbnails (PR [#58](https://github.com/czg86389-hub/muse2api/pull/58), [#55](https://github.com/czg86389-hub/muse2api/pull/55), [#57](https://github.com/czg86389-hub/muse2api/pull/57), [#51](https://github.com/czg86389-hub/muse2api/pull/51)).
+
+Everyone is welcome to submit PRs and Issues — let's make the project even stronger and better together!
+
+---
+
+## 📄 Open Source License
+
+This project is released as open source under the [MIT License](LICENSE).
 
 
-## 媒体选择回归测试
+## Media Selection Regression Tests
 
-修复上传参考图被误判为生成结果、下载过程被页面其他媒体覆盖的问题。
-测试使用独立临时 Chromium profile 和本地合成 DOM，不访问 Muse、不读取账号、不会消耗生成额度。
-安装项目依赖和 Chromium 后，从仓库根目录运行：
+Fixed reference images being misidentified as generated results, and downloads being overwritten by other media on the page.
+Tests use an independent temporary Chromium profile and a locally synthesized DOM, do not access Muse, do not read accounts, and do not consume generation quota.
+After installing the project dependencies and Chromium, run from the repository root:
 
 ```bash
 python tests/test_media_selection.py
 ```
 
-如浏览器不在 PATH，可设置 `MUSE2API_CHROMIUM` 为可执行文件路径。
-覆盖上传预览排除、结果去重、历史附件排除、精确来源下载、视频来源保持、
-禁止全局下载回退，以及参考图读取失败时中止。最终图片编辑效果仍需通过真实接口验收。
+If the browser is not in PATH, set `MUSE2API_CHROMIUM` to the executable path.
+Covers upload preview exclusion, result deduplication, history attachment exclusion, precise source downloads, video source preservation,
+prohibition of global download fallback, and aborting when reference-image reading fails. The final image-editing result still needs to be verified through the real API.
 
 
-## v1.5.2：反向代理/CDN 后的长耗时生图
+## v1.5.2: Long Image Generation Behind a Reverse Proxy / CDN
 
-同步 OpenAI 图片接口仍保留兼容，但 CDN/客户端可能在生成结束前截断长请求。
-生产客户端应使用短提交 + 轮询，而不是延长 HTTP 超时后重复生成：
+The synchronous OpenAI image API remains compatible, but a CDN/client may truncate long requests before generation finishes.
+Production clients should use short submission + polling, rather than extending the HTTP timeout and generating again:
 
-1. `POST /v1/images/tasks`：JSON 与 `/v1/images/generations` 相同，可用 `reference_image` 传入单张参考图，或用 `images` 数组传入多张参考图；建议添加稳定的 `Idempotency-Key` 请求头。
-2. 接收 HTTP 202 和 `id`，每 3 秒调用 `GET /v1/images/tasks/{id}`。
-3. `status=completed` 时读取 `url` 或 `data[0]`；`status=failed` 时显示 `error`。查询失败只重试查询，不要重新 POST 生图。
-4. 相同幂等键及相同输入返回原任务；同键不同输入返回 409；队列满返回 429。一个进程共享一个浏览器，最多接收 8 个未结束图片任务。
+1. `POST /v1/images/tasks`: The JSON is the same as `/v1/images/generations`; you can pass a single reference image with `reference_image`, or multiple reference images with the `images` array; adding a stable `Idempotency-Key` request header is recommended.
+2. Receive HTTP 202 and `id`, and call `GET /v1/images/tasks/{id}` every 3 seconds.
+3. When `status=completed`, read `url` or `data[0]`; when `status=failed`, show `error`. If a query fails, only retry the query — do not POST a new image generation.
+4. The same idempotency key and same input return the original task; the same key with different input returns 409; a full queue returns 429. One process shares one browser and accepts at most 8 unfinished image tasks.
 
-原 `/v1/images/generations` JSON 和 `/v1/images/edits` JSON/multipart 也可传 `async=true`，切换到同一异步处理。默认同步行为不变。
-`timeout` 为排队及生成等待预算（1–600 秒），浏览器初始化与取回另有各自超时；客户端应继续轮询任务终态。
-任务元数据持久化；进程重启时尚未完成的图片任务标记失败，不会悄悄再次生成。
-管理页图片接口测试也已改为任务轮询。
+The original `/v1/images/generations` JSON and `/v1/images/edits` JSON/multipart can also pass `async=true` to switch to the same async handling. The default synchronous behavior is unchanged.
+`timeout` is the queue and generation wait budget (1-600 seconds); browser initialization and retrieval have their own timeouts; clients should keep polling for the task's final state.
+Task metadata is persisted; when the process restarts, unfinished image tasks are marked as failed and are not silently generated again.
+The admin page image API test has also been changed to task polling.
 
-回归检查（不消耗真实生成额度）：
+Regression checks (do not consume real generation quota):
 
 ```bash
 python tests/test_async_images.py
 python tests/test_vm_wait.py engine.py --assert
 ```
 
-修复共享浏览器异常处理在解锁后重置其他任务的竞争；不再把页面侧栏残留的
-`Connecting...` / `Still sending` 文本当作当前生图在 16 秒内失败的证据。
+Fixed a race where shared-browser exception handling reset other tasks after unlocking; no longer treats leftover sidebar text such as
+`Connecting...` / `Still sending` as evidence that the current image generation failed within 16 seconds.
 
 
-## v1.5.3：账号状态异常与自建实例排查
+## v1.5.3: Abnormal Account Status & Self-Hosted Instance Troubleshooting
 
-保活请求来自**部署服务器的出口**，并非导出 Cookie 的浏览器。作者服务器可用，不能证明另一台服务器的网络、地区、代理配置或同一账号会话也正常。
+Keep-alive requests come from the **deployment server's egress**, not from the browser that exported the Cookie. That the author's server works does not prove that another server's network, region, proxy configuration, or the same account's session is also fine.
 
-- `/api/session HTTP 401`：上游拒绝认证。先确认该账号能在 muse.ai 官网登录，再重新导入 Cookie。
-- `HTTP 403`：访问被拒绝，可能涉及账号权限、服务器出口或地区/访问限制；**不等同于 Cookie 过期**。检查完整错误和部署网络，不要反复盲目重导。
-- `HTTP 429`、`5xx`、超时、非 JSON 或未返回 `assigned`：本次保活未确认，不再假报成功或覆盖上次已确认的账号状态；备注显示诊断。原状态为“未检测”或“异常”时也不会被强行改成“可用”。
-- 浏览器页面加载超时也不再直接当成认证失效；只有明确认证失败才标记账号异常。
-- “可用”是最近一次已确认结果，不保证本次网络可达；“剩余有效期”是 Cookie 时间/估算值，不是服务端会话有效的证明。成功检测不再凭空延长 48 小时，续期以实际返回的 Cookie 为准。
+- `/api/session HTTP 401`: Upstream rejected authentication. First confirm the account can log in on the muse.ai official site, then re-import the Cookie.
+- `HTTP 403`: Access denied, possibly involving account permissions, server egress, or region/access restrictions; **this is not the same as an expired Cookie**. Check the full error and deployment network, and do not blindly re-import repeatedly.
+- `HTTP 429`, `5xx`, timeouts, non-JSON, or no `assigned` returned: This keep-alive was not confirmed; it no longer falsely reports success or overwrites the last confirmed account status; the note shows the diagnosis. If the original status was "Not tested" or "Abnormal", it is not forcibly changed to "Available" either.
+- A browser page load timeout is no longer treated directly as authentication failure; an account is only marked abnormal on explicit authentication failure.
+- "Available" is the most recent confirmed result and does not guarantee the network is reachable this time; "Remaining validity" is a Cookie time/estimate, not proof that the server session is valid. Successful detection no longer extends the validity by 48 hours out of thin air; renewal follows the Cookie actually returned.
 
-更新到 v1.5.3 并重启服务后，点击账号“测试”重新确认。旧版已写入的异常不会被无条件洗成正常。鼠标悬停备注可查看完整错误；反馈请提供 HTTP 状态、版本与部署环境，**不要公开 Cookie、API Key 或带 key 的管理页链接**。
+After updating to v1.5.3 and restarting the service, click "Test" on the account to re-confirm. Exceptions already written by the old version are not unconditionally cleared to normal. Hover over the note to see the full error; when reporting an issue, provide the HTTP status, version, and deployment environment, and **do not publish Cookies, API Keys, or admin page links containing a key**.
 
-裸机 Git 部署：`git pull --ff-only` 后重启对应服务；Docker Compose：`git pull --ff-only && docker compose up -d --build`。请先保存本地自定义修改，保留 `.env` 与 `data/`。
+Bare-metal Git deployment: run `git pull --ff-only` and then restart the corresponding service; Docker Compose: `git pull --ff-only && docker compose up -d --build`. Save local custom changes first, and keep `.env` and `data/`.
 
-不使用真实账号、不消耗生成额度的回归测试：
+Regression tests that do not use real accounts or consume generation quota:
 
 ```bash
 python tests/test_session_health.py
 ```
 # MUSE2API 1.6.1
 
-## 更新说明（2026-10-13）
+## Update Notes (2026-10-13)
 
-- 修复多账号额度查询串读：额度查询绑定对应账号的浏览器页面，避免不同账号之间显示错误余额和用量。
-- 额度读取失败或未读到有效数据时保留旧缓存，并明确报告读取失败，避免将无效结果当成实时额度。
-- 修复保活成功误报：区分唤醒请求已接受与 VM 已运行，只有复核状态为 RUNNING 才报告唤醒成功。
-- 管理页显示额度查询时间和过期提示；账号测试分别反馈会话有效性与额度读取状态。
-- 新增离线回归测试，覆盖账号额度隔离及 VM 唤醒状态确认。
+- Fixed cross-account quota query mix-ups: quota queries are bound to the corresponding account's browser page, preventing different accounts from showing wrong balances and usage.
+- When quota reading fails or no valid data is read, the old cache is kept and the failure is clearly reported, avoiding treating invalid results as real-time quota.
+- Fixed false keep-alive success reports: distinguish between a wake-up request being accepted and the VM actually running; wake-up success is only reported when the re-check status is RUNNING.
+- The admin page shows quota query time and expiry reminders; account tests separately report session validity and quota reading status.
+- Added offline regression tests covering account quota isolation and VM wake-up status confirmation.
 
-参考素材校验说明：视频必须含有可解析且不超过 120 秒的时长信息（MP4/MOV/3GP/WebM）；
-缺失或损坏的时长信息会被拒绝。PDF 页数、文档解析和账号权限仍由 Muse 上游校验，
-本项目的附件确认只表示文件进入输入区，不保证上游能够读取每一种文件。
-Chromium 与服务必须能访问同一份素材文件；临时素材位于浏览器 profile 目录并在任务结束后清理。
+Reference material validation notes: Videos must contain parsable duration information of no more than 120 seconds (MP4/MOV/3GP/WebM);
+Missing or damaged duration information will be rejected. PDF page counts, document parsing, and account permissions are still validated by Muse upstream,
+Attachment confirmation in this project only means a file has entered the input area; it does not guarantee upstream can read every file type.
+Chromium and the service must be able to access the same material file; temporary materials are located in the browser profile directory and are cleaned up after the task ends.

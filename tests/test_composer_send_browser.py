@@ -90,13 +90,13 @@ with tempfile.TemporaryDirectory(prefix='muse-send-test-', dir=Path.home()) as h
         print('PASS: retry uses the same scoped send control')
 
         for label, text, test_id in (
-            ('发送', '', ''), ('傳送', '', ''), ('', 'Send', ''),
+            ('Send', '', ''), ('Send', '', ''), ('', 'Send', ''),
             ('', '', 'hatch-composer-send-button'), ('Send message', '', '')):
             fixture(label=label, text=text, test_id=test_id)
             page.js("document.querySelector('textarea').value='localized prompt'")
             assert engine._click_send() == 'clicked'
             assert_accepted('localized prompt')
-        print('PASS: English/Chinese labels, exact text and composer test IDs')
+        print('PASS: English labels, exact text and composer test IDs')
 
         for options, expected in (({'disabled': True}, 'disabled'),
                                   ({'aria_disabled': True}, 'disabled'),

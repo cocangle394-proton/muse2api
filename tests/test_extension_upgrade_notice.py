@@ -5,7 +5,7 @@ v=json.loads((root/'version.json').read_text())
 m=json.loads((root/'extension/manifest.json').read_text())
 assert m['version']=='1.0.3'
 assert m['version'] in '\n'.join(v['highlights']) and m['version'] in '\n'.join(v['highlights_en'])
-assert '手动' in '\n'.join(v['highlights']) and 'every browser profile' in '\n'.join(v['highlights_en'])
+assert 'manual' in '\n'.join(v['highlights']) and 'every browser profile' in '\n'.join(v['highlights_en'])
 html=(root/'admin.html').read_text()
 assert 'id="extensionUpgradeNotice"' in html and '"extension-upgrade-notice":' in html
 assert 'href="/admin/extension"' in html

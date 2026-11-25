@@ -23,7 +23,7 @@ with tempfile.TemporaryDirectory() as home:
     calls = []
     def refuse(cookies, prompt, **kwargs):
         calls.append(cookies["hatch_sess"])
-        raise app.MuseModelRefusalError("模型未生成媒体，仅返回文本: 地区不可用")
+        raise app.MuseModelRefusalError("The model produced no media, only text: region unavailable")
     with patch.object(app, "_renew_and_persist", side_effect=lambda ident, **_: app.store.get_account(ident)), \
          patch.object(app.engine, "start"), patch.object(app.engine, "generate", side_effect=refuse), \
          patch.object(app.engine, "reset_thread"), patch.object(app.engine, "close_current_page"):
