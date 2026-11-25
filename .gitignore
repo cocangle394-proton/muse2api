@@ -64,3 +64,9 @@ Thumbs.db
 
 # Independent generation queue settings
 data/generation-queue.json
+
+# Backup artifacts (muse2api data sync — see DATA_SYNC.md)
+*.tar.gz.age
+*.age
+scripts/.env.r2
+.rclone.conf
