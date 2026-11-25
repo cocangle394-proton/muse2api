@@ -1,0 +1,6 @@
+{
+  "name": "muse2api",
+  "image": "mcr.microsoft.com/devcontainers/universal:2",
+  "remoteUser": "codespace",
+  "postStartCommand": "bash /workspaces/muse2api/start-tailscale.sh"
+}
