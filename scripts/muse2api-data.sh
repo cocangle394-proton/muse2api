@@ -2,9 +2,17 @@
 # muse2api-data.sh — shared-data backup / restore for muse2api.
 #
 # The repo code lives on GitHub (the fork). The runtime data lives in a
-# central object store (Cloudflare R2, S3-compatible) so any compute
-# platform (Codespace, VPS, ...) can restore the same data and take over.
-# Compute platforms are disposable; the R2 bucket is the source of truth.
+# central object store (Backblaze B2 by default, S3-compatible; Cloudflare
+# R2 is an alternative) so any compute platform (Codespace, VPS, ...)
+# can restore the same data and take over. Compute platforms are
+# disposable; the bucket is the source of truth.
+#
+# Only config / system data is backed up — never images, videos or chat
+# history. The backup bundle contains only these files (when they exist):
+#   .env, data/accounts.json, data/mail_accounts.txt,
+#   data/generation-queue.json
+# Deliberately NOT backed up: data/tasks.json (chat/image/video task
+# history), data/media/* (generated images/videos), data/downloads/*.
 #
 # Usage:
 #   scripts/muse2api-data.sh setup    # check tools, write rclone config
@@ -12,18 +20,28 @@
 #   scripts/muse2api-data.sh restore [bundle-name]  # download+decrypt+extract (does NOT start the container)
 #   scripts/muse2api-data.sh status   # local data size, accounts count, remote backups
 #
-# Configuration comes ONLY from the environment or from scripts/.env.r2
-# (gitignored, never committed). Nothing secret is hardcoded here and
-# nothing secret is ever printed by this script (only sha256 prefixes
-# and lengths are shown).
+# Configuration comes ONLY from the environment or from
+# scripts/.env.storage (gitignored, never committed; the old name
+# scripts/.env.r2 is still sourced if present). Nothing secret is
+# hardcoded here and nothing secret is ever printed by this script
+# (only sha256 prefixes and lengths are shown).
 #
+#   STORAGE_PROVIDER      "b2" (default) or "r2"
+#   STORAGE_BUCKET        bucket name (default: muse2api-data)
+#   STORAGE_REMOTE        rclone remote name (default: storage).
+#                         Override for tests, e.g. a local remote
+#                         pointing at /tmp/b2-test.
+#   B2_ENDPOINT           Backblaze B2 S3 endpoint, e.g.
+#                         https://s3.us-west-004.backblazeb2.com
+#                         (shown on the bucket page; the region varies)
+#   B2_KEY_ID             B2 application key id (keyID)
+#   B2_APPLICATION_KEY    B2 application key (shown once — never printed)
+#   B2_REGION             optional override; otherwise derived from
+#                         B2_ENDPOINT (the part after "s3.")
 #   R2_ACCOUNT_ID         Cloudflare account ID (R2 endpoint host part)
-#   R2_BUCKET             R2 bucket name (default: muse2api-data)
 #   R2_ACCESS_KEY_ID      R2 API token access key id
 #   R2_SECRET_ACCESS_KEY  R2 API token secret (never printed)
 #   BACKUP_PASSPHRASE     age passphrase for the backup bundle (never printed, never written to a file)
-#   R2_REMOTE             rclone remote name (default: r2). Override for tests,
-#                         e.g. a local remote pointing at /tmp/r2-test.
 #   RCLONE_CONFIG         rclone config path (default: ~/.config/rclone/rclone.conf)
 #
 # Why age needs a helper below: `age -p` refuses to read a passphrase
@@ -40,15 +58,19 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # Local env file (gitignored). Sourced first; real environment wins afterwards
 # only if it is set after sourcing, so keep this file out of git.
-if [ -f "$SCRIPT_DIR/.env.r2" ]; then
-  set -a
-  # shellcheck disable=SC1091
-  . "$SCRIPT_DIR/.env.r2"
-  set +a
-fi
+for _env_file in "$SCRIPT_DIR/.env.storage" "$SCRIPT_DIR/.env.r2"; do
+  if [ -f "$_env_file" ]; then
+    set -a
+    # shellcheck disable=SC1091
+    . "$_env_file"
+    set +a
+  fi
+done
 
-R2_BUCKET="${R2_BUCKET:-muse2api-data}"
-R2_REMOTE="${R2_REMOTE:-r2}"
+STORAGE_PROVIDER="${STORAGE_PROVIDER:-b2}"
+# R2_BUCKET / R2_REMOTE are accepted as aliases for the generic names.
+STORAGE_BUCKET="${STORAGE_BUCKET:-${R2_BUCKET:-muse2api-data}}"
+STORAGE_REMOTE="${STORAGE_REMOTE:-${R2_REMOTE:-storage}}"
 RCLONE_CONF="${RCLONE_CONFIG:-$HOME/.config/rclone/rclone.conf}"
 BACKUP_PREFIX="backups"
 
@@ -71,15 +93,15 @@ check_tools() {
 }
 
 remote_configured() {
-  [ -f "$RCLONE_CONF" ] && grep -q "^\[$R2_REMOTE\]" "$RCLONE_CONF"
+  [ -f "$RCLONE_CONF" ] && grep -q "^\[$STORAGE_REMOTE\]" "$RCLONE_CONF"
 }
 
 require_remote() {
-  remote_configured || die "rclone remote '$R2_REMOTE' is not configured. Run '$0 setup' first (or set R2_REMOTE to an existing remote)."
+  remote_configured || die "rclone remote '$STORAGE_REMOTE' is not configured. Run '$0 setup' first (or set STORAGE_REMOTE to an existing remote)."
 }
 
 require_passphrase() {
-  [ -n "${BACKUP_PASSPHRASE:-}" ] || die "BACKUP_PASSPHRASE is not set. Set it in the environment or in scripts/.env.r2 (never commit it)."
+  [ -n "${BACKUP_PASSPHRASE:-}" ] || die "BACKUP_PASSPHRASE is not set. Set it in the environment or in scripts/.env.storage (never commit it)."
 }
 
 accounts_count() {
@@ -175,31 +197,73 @@ cmd_setup() {
     "$REPO_ROOT"/*) die "refusing to write the rclone config inside the repo ($RCLONE_CONF)" ;;
   esac
   if remote_configured; then
-    info "rclone remote '$R2_REMOTE' is already configured in $RCLONE_CONF — nothing to do."
-    info "bucket: $R2_BUCKET"
+    info "rclone remote '$STORAGE_REMOTE' is already configured in $RCLONE_CONF — nothing to do."
+    info "provider: $STORAGE_PROVIDER"
+    info "bucket: $STORAGE_BUCKET"
     return 0
   fi
-  [ -n "${R2_ACCOUNT_ID:-}" ] || die "R2_ACCOUNT_ID is not set (and remote '$R2_REMOTE' is not configured yet)."
-  [ -n "${R2_ACCESS_KEY_ID:-}" ] || die "R2_ACCESS_KEY_ID is not set."
-  [ -n "${R2_SECRET_ACCESS_KEY:-}" ] || die "R2_SECRET_ACCESS_KEY is not set."
   mkdir -p "$(dirname "$RCLONE_CONF")"
   chmod 700 "$(dirname "$RCLONE_CONF")" 2>/dev/null || true
-  {
-    echo "[$R2_REMOTE]"
-    echo "type = s3"
-    echo "provider = Cloudflare"
-    echo "access_key_id = $R2_ACCESS_KEY_ID"
-    echo "secret_access_key = $R2_SECRET_ACCESS_KEY"
-    echo "endpoint = https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com"
-    echo "acl = private"
-    echo ""
-  } >> "$RCLONE_CONF"
-  chmod 600 "$RCLONE_CONF"
-  info "wrote rclone remote '$R2_REMOTE' to $RCLONE_CONF (chmod 600)"
-  info "account id: $(masked "$R2_ACCOUNT_ID")"
-  info "access key id: $(masked "$R2_ACCESS_KEY_ID")"
-  info "bucket: $R2_BUCKET"
-  info "secret access key: (not shown, len ${#R2_SECRET_ACCESS_KEY})"
+  case "$STORAGE_PROVIDER" in
+    b2)
+      [ -n "${B2_ENDPOINT:-}" ] || die "B2_ENDPOINT is not set (e.g. https://s3.us-west-004.backblazeb2.com — shown on the bucket page)."
+      [ -n "${B2_KEY_ID:-}" ] || die "B2_KEY_ID is not set."
+      [ -n "${B2_APPLICATION_KEY:-}" ] || die "B2_APPLICATION_KEY is not set."
+      local region="${B2_REGION:-}"
+      if [ -z "$region" ]; then
+        # https://s3.us-west-004.backblazeb2.com -> us-west-004
+        region="${B2_ENDPOINT#https://s3.}"
+        region="${region%%.backblazeb2.com}"
+        case "$region" in
+          *backblazeb2.com*|"$B2_ENDPOINT") die "cannot derive the B2 region from B2_ENDPOINT ($B2_ENDPOINT). Set B2_REGION explicitly." ;;
+        esac
+      fi
+      {
+        echo "[$STORAGE_REMOTE]"
+        echo "type = s3"
+        echo "provider = Other"
+        echo "access_key_id = $B2_KEY_ID"
+        echo "secret_access_key = $B2_APPLICATION_KEY"
+        echo "endpoint = $B2_ENDPOINT"
+        echo "region = $region"
+        echo "acl = private"
+        echo ""
+      } >> "$RCLONE_CONF"
+      chmod 600 "$RCLONE_CONF"
+      info "wrote rclone remote '$STORAGE_REMOTE' to $RCLONE_CONF (chmod 600)"
+      info "provider: b2"
+      info "endpoint: $B2_ENDPOINT"
+      info "region: $region"
+      info "key id: $(masked "$B2_KEY_ID")"
+      info "bucket: $STORAGE_BUCKET"
+      info "application key: (not shown, len ${#B2_APPLICATION_KEY})"
+      ;;
+    r2)
+      [ -n "${R2_ACCOUNT_ID:-}" ] || die "R2_ACCOUNT_ID is not set (and remote '$STORAGE_REMOTE' is not configured yet)."
+      [ -n "${R2_ACCESS_KEY_ID:-}" ] || die "R2_ACCESS_KEY_ID is not set."
+      [ -n "${R2_SECRET_ACCESS_KEY:-}" ] || die "R2_SECRET_ACCESS_KEY is not set."
+      {
+        echo "[$STORAGE_REMOTE]"
+        echo "type = s3"
+        echo "provider = Cloudflare"
+        echo "access_key_id = $R2_ACCESS_KEY_ID"
+        echo "secret_access_key = $R2_SECRET_ACCESS_KEY"
+        echo "endpoint = https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com"
+        echo "acl = private"
+        echo ""
+      } >> "$RCLONE_CONF"
+      chmod 600 "$RCLONE_CONF"
+      info "wrote rclone remote '$STORAGE_REMOTE' to $RCLONE_CONF (chmod 600)"
+      info "provider: r2"
+      info "account id: $(masked "$R2_ACCOUNT_ID")"
+      info "access key id: $(masked "$R2_ACCESS_KEY_ID")"
+      info "bucket: $STORAGE_BUCKET"
+      info "secret access key: (not shown, len ${#R2_SECRET_ACCESS_KEY})"
+      ;;
+    *)
+      die "unknown STORAGE_PROVIDER '$STORAGE_PROVIDER' (use 'b2' or 'r2')"
+      ;;
+  esac
 }
 
 cmd_backup() {
@@ -215,8 +279,8 @@ cmd_backup() {
   # under `set -u` the unexpanded name would fail at exit.
   trap "rm -rf '$work'" EXIT
 
-  # Stop the container first so accounts.json / tasks.json are not
-  # being written while we tar them. Only if it is actually running.
+  # Stop the container first so accounts.json is not being written
+  # while we tar it. Only if it is actually running.
   if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx "muse2api"; then
     info "stopping container muse2api..."
     (cd "$REPO_ROOT" && docker compose stop >/dev/null)
@@ -225,10 +289,19 @@ cmd_backup() {
     info "container muse2api is not running — skipping stop."
   fi
 
-  local tar_files=(data)
-  if [ -f "$REPO_ROOT/.env" ]; then
-    tar_files+=(.env)
-  else
+  # Config / system data only — explicit allowlist. Never images,
+  # videos or chat history: data/tasks.json, data/media/* and
+  # data/downloads/* are deliberately NOT included.
+  local tar_files=()
+  for f in .env data/accounts.json data/mail_accounts.txt data/generation-queue.json; do
+    if [ -f "$REPO_ROOT/$f" ]; then
+      tar_files+=("$f")
+    fi
+  done
+  if [ "${#tar_files[@]}" -eq 0 ]; then
+    die "nothing to back up — none of .env, data/accounts.json, data/mail_accounts.txt, data/generation-queue.json exists"
+  fi
+  if [ ! -f "$REPO_ROOT/.env" ]; then
     echo "warning: $REPO_ROOT/.env not found — bundle will not contain the API key" >&2
   fi
   tar -czf "$work/bundle.tar.gz" -C "$REPO_ROOT" "${tar_files[@]}"
@@ -257,9 +330,9 @@ with open(sys.argv[2], "w", encoding="utf-8") as fh:
     json.dump(manifest, fh, indent=2, sort_keys=True)
 PYEOF
 
-  info "uploading $bundle to $R2_REMOTE:$R2_BUCKET/$BACKUP_PREFIX/ ..."
-  rclone copyto "$work/$bundle" "$R2_REMOTE:$R2_BUCKET/$BACKUP_PREFIX/$bundle"
-  rclone copyto "$work/$bundle.manifest.json" "$R2_REMOTE:$R2_BUCKET/$BACKUP_PREFIX/$bundle.manifest.json"
+  info "uploading $bundle to $STORAGE_REMOTE:$STORAGE_BUCKET/$BACKUP_PREFIX/ ..."
+  rclone copyto "$work/$bundle" "$STORAGE_REMOTE:$STORAGE_BUCKET/$BACKUP_PREFIX/$bundle"
+  rclone copyto "$work/$bundle.manifest.json" "$STORAGE_REMOTE:$STORAGE_BUCKET/$BACKUP_PREFIX/$bundle.manifest.json"
 
   # Local copy in /tmp only — never in the repo.
   cp "$work/$bundle" "/tmp/$bundle"
@@ -286,7 +359,7 @@ PYEOF
   info "sha256: ${sha:0:12}... (len ${#sha})"
   info "size: $size bytes"
   info "accounts: $count"
-  info "remote: $R2_REMOTE:$R2_BUCKET/$BACKUP_PREFIX/$bundle"
+  info "remote: $STORAGE_REMOTE:$STORAGE_BUCKET/$BACKUP_PREFIX/$bundle"
   info "local copy: /tmp/$bundle"
 }
 
@@ -297,8 +370,8 @@ cmd_restore() {
   local bundle="${1:-}"
   if [ -z "$bundle" ]; then
     info "no bundle given — picking the latest backup on the remote..."
-    bundle="$(rclone lsf "$R2_REMOTE:$R2_BUCKET/$BACKUP_PREFIX/" --files-only 2>/dev/null | grep '\.tar\.gz\.age$' | sort | tail -n 1)"
-    [ -n "$bundle" ] || die "no backup bundle found at $R2_REMOTE:$R2_BUCKET/$BACKUP_PREFIX/"
+    bundle="$(rclone lsf "$STORAGE_REMOTE:$STORAGE_BUCKET/$BACKUP_PREFIX/" --files-only 2>/dev/null | grep '\.tar\.gz\.age$' | sort | tail -n 1)"
+    [ -n "$bundle" ] || die "no backup bundle found at $STORAGE_REMOTE:$STORAGE_BUCKET/$BACKUP_PREFIX/"
   fi
   info "restoring bundle: $bundle"
   local work sha_manifest sha_actual count
@@ -307,8 +380,8 @@ cmd_restore() {
   # under `set -u` the unexpanded name would fail at exit.
   trap "rm -rf '$work'" EXIT
 
-  rclone copyto "$R2_REMOTE:$R2_BUCKET/$BACKUP_PREFIX/$bundle" "$work/$bundle"
-  if rclone copyto "$R2_REMOTE:$R2_BUCKET/$BACKUP_PREFIX/$bundle.manifest.json" "$work/$bundle.manifest.json" 2>/dev/null; then
+  rclone copyto "$STORAGE_REMOTE:$STORAGE_BUCKET/$BACKUP_PREFIX/$bundle" "$work/$bundle"
+  if rclone copyto "$STORAGE_REMOTE:$STORAGE_BUCKET/$BACKUP_PREFIX/$bundle.manifest.json" "$work/$bundle.manifest.json" 2>/dev/null; then
     sha_manifest="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["sha256"])' "$work/$bundle.manifest.json")"
     sha_actual="$(sha256sum "$work/$bundle" | awk '{print $1}')"
     [ "$sha_manifest" = "$sha_actual" ] || die "sha256 mismatch for $bundle (manifest ${sha_manifest:0:12}... vs actual ${sha_actual:0:12}...)"
@@ -357,10 +430,10 @@ cmd_status() {
     info "container: muse2api not running"
   fi
   if remote_configured; then
-    info "remote backups at $R2_REMOTE:$R2_BUCKET/$BACKUP_PREFIX/:"
-    rclone lsf "$R2_REMOTE:$R2_BUCKET/$BACKUP_PREFIX/" --files-only 2>/dev/null | sort || echo "(none found)"
+    info "remote backups at $STORAGE_REMOTE:$STORAGE_BUCKET/$BACKUP_PREFIX/:"
+    rclone lsf "$STORAGE_REMOTE:$STORAGE_BUCKET/$BACKUP_PREFIX/" --files-only 2>/dev/null | sort || echo "(none found)"
   else
-    info "remote: '$R2_REMOTE' not configured — run '$0 setup' first."
+    info "remote: '$STORAGE_REMOTE' not configured — run '$0 setup' first."
   fi
 }
 
@@ -371,9 +444,11 @@ case "${1:-}" in
   status)  cmd_status ;;
   *)
     echo "usage: $0 {setup|backup|restore [bundle-name]|status}" >&2
-    echo "config: R2_ACCOUNT_ID, R2_BUCKET (default muse2api-data), R2_ACCESS_KEY_ID," >&2
-    echo "        R2_SECRET_ACCESS_KEY, BACKUP_PASSPHRASE, R2_REMOTE (default r2)" >&2
-    echo "        (or put them in scripts/.env.r2 — gitignored, never commit it)" >&2
+    echo "config: STORAGE_PROVIDER (b2| r2, default b2), STORAGE_BUCKET (default muse2api-data)," >&2
+    echo "        B2_ENDPOINT, B2_KEY_ID, B2_APPLICATION_KEY (for b2) or" >&2
+    echo "        R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY (for r2)," >&2
+    echo "        BACKUP_PASSPHRASE, STORAGE_REMOTE (default storage)" >&2
+    echo "        (or put them in scripts/.env.storage — gitignored, never commit it)" >&2
     exit 2
     ;;
 esac

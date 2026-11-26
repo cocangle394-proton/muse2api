@@ -70,3 +70,4 @@ data/generation-queue.json
 *.age
 scripts/.env.r2
 .rclone.conf
+scripts/.env.storage
