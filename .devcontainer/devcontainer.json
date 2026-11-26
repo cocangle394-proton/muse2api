@@ -2,5 +2,6 @@
   "name": "muse2api",
   "image": "mcr.microsoft.com/devcontainers/universal:2",
   "remoteUser": "codespace",
-  "postStartCommand": "bash /workspaces/muse2api/start-muse2api.sh"
+  "postStartCommand": "bash /workspaces/muse2api/start-muse2api.sh",
+  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y rclone age"
 }
