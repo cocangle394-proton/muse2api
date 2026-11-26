@@ -106,7 +106,8 @@ require_passphrase() {
 
 accounts_count() {
   # Count accounts in data/accounts.json (a JSON list). Count only — never print content.
-  local f="$REPO_ROOT/data/accounts.json"
+  # Optional arg: path to read (the staged copy); defaults to the repo file.
+  local f="${1:-$REPO_ROOT/data/accounts.json}"
   if [ ! -f "$f" ]; then echo 0; return; fi
   python3 - "$f" <<'PYEOF' 2>/dev/null || echo 0
 import json, sys
@@ -309,9 +310,22 @@ cmd_backup() {
   if [ ! -f "$REPO_ROOT/.env" ]; then
     echo "warning: $REPO_ROOT/.env not found — bundle will not contain the API key" >&2
   fi
-  tar -czf "$work/bundle.tar.gz" -C "$REPO_ROOT" "${tar_files[@]}"
+  # Stage the allowlisted files first: the container runs as root and
+  # owns data/accounts.json with mode 600, so this user cannot read it
+  # directly — copy unreadable files via sudo (passwordless in Codespaces).
+  local stage="$work/stage"
+  mkdir -p "$stage"
+  for f in "${tar_files[@]}"; do
+    mkdir -p "$stage/$(dirname "$f")"
+    if [ -r "$REPO_ROOT/$f" ]; then
+      cp "$REPO_ROOT/$f" "$stage/$f"
+    else
+      sudo cp "$REPO_ROOT/$f" "$stage/$f" && sudo chmod 644 "$stage/$f"
+    fi
+  done
+  tar -czf "$work/bundle.tar.gz" -C "$stage" "${tar_files[@]}"
   tar -tzf "$work/bundle.tar.gz" > "$work/files.txt"
-  count="$(accounts_count)"
+  count="$(accounts_count "$stage/data/accounts.json")"
 
   info "encrypting bundle with age (passphrase from BACKUP_PASSPHRASE, never printed)..."
   _age_pty enc age -p -o "$work/$bundle" "$work/bundle.tar.gz"
