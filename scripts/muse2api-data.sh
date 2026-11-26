@@ -285,6 +285,11 @@ cmd_backup() {
     info "stopping container muse2api..."
     (cd "$REPO_ROOT" && docker compose stop >/dev/null)
     was_running=1
+    # If the upload (or anything after this point) fails, the EXIT trap
+    # restarts the container, so a failed backup never leaves the
+    # service down. On success the container is already running and
+    # the trap's restart is a no-op.
+    trap "rm -rf '$work'; if ! docker ps --format '{{.Names}}' 2>/dev/null | grep -qx 'muse2api'; then (cd '$REPO_ROOT' && docker compose up -d >/dev/null 2>&1 || true); fi" EXIT
   else
     info "container muse2api is not running — skipping stop."
   fi
