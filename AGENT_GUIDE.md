@@ -445,6 +445,20 @@ How the VM differs from the Codespace path:
   contains the Hatch egress CA. The backup wrapper and watcher do
   this for every rclone call — do the same for any manual rclone
   command on the VM.
+- **rclone/age must come from `~/workspace/bin`, not apt.**
+  Apt-installed tools die on VM replacement (`/usr` does not
+  survive it). `~/workspace/bin/rclone` (1.60.1) and
+  `~/workspace/bin/age` (1.1.1, plus `age-keygen`) are persistent
+  binaries extracted from the cached .debs with `dpkg-deb -x`
+  (which needs no apt/dpkg lock). The watcher and the backup
+  wrapper prepend `~/workspace/bin` to PATH. If they are missing
+  after a replacement, extract them again from
+  `/var/cache/apt/archives/rclone_*.deb` and `age_*.deb` (the
+  archive cache survives reboots) — or download static builds.
+  This broke auto-backup on 2026-11-27 (the watch failed twice
+  with `missing tool: rclone/age`) until the persistent binaries
+  were installed; `muse2api-data-20261127-044028.tar.gz.age` was
+  the first bundle after the fix.
 - B2 credentials on the VM: `~/workspace/muse2api/scripts/.env.storage`
   (copied from the Codespace via scp, chmod 600) and
   `~/.config/rclone/rclone.conf` (written by `setup`, chmod 600).
