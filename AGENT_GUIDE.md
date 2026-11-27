@@ -562,7 +562,9 @@ authed `api()` helper.
 `bash start-fresh.sh` (or `PORT=18699 bash start-fresh.sh`):
 (a) starts the server the platform's normal way — Docker Compose if
 `docker compose version` works, else `.venv/bin/uvicorn`, else
-system `python3 -m uvicorn`; (b) starts a cloudflared quick tunnel
+system `python3 -m uvicorn`; (b) asks first (only when run in a terminal — `[Y/n]`, default Y
+after 15 s; `--no-tunnel` or `MUSE2API_NO_TUNNEL=1` skips it, and
+non-interactive runs always start it) and starts a cloudflared quick tunnel
 to localhost:18610 and prints the public
 `https://*.trycloudflare.com` URL; (c) prints the setup status
 from `/admin/setup-status`. The trycloudflare URL changes on every
