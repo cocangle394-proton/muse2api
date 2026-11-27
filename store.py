@@ -106,6 +106,18 @@ class Store:
                 a["expires_at"] = int(ce["hatch_vml"])
         self.tasks: dict[str, dict] = _read(cfg.tasks_file, {})
 
+    def reload(self):
+        """Re-read accounts and tasks from disk (used after a first-run
+        restore, so the running process picks up the restored data
+        without a restart)."""
+        with _LOCK:
+            self.accounts = _read(self.cfg.accounts_file, [])
+            for a in self.accounts:
+                ce = a.get("cookies_exp") or {}
+                if _is_pos(ce.get("hatch_vml")):
+                    a["expires_at"] = int(ce["hatch_vml"])
+            self.tasks = _read(self.cfg.tasks_file, {})
+
     # ---------- Accounts ----------
     def add_account(self, cookies: dict, label: str = "",
                     cookies_exp: dict | None = None) -> dict:

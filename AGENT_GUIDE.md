@@ -486,3 +486,111 @@ per-account proxy settings). Merge instead (script:
   (it came from the Codespace). On the VM it cannot generate until
   `socks5://127.0.0.1:11080` is set on it, like the other three
   enabled accounts. Do not enable acc3–acc6 without being asked.
+
+## 14. First-run setup wizard (added 2026-11-27)
+
+Problem it solves: on a brand-new machine after cloning, there is no
+API key to log in with, so a dashboard where the owner enters the 4
+B2 values (§3) cannot sit behind API-key login. The wizard needs no
+key — but only while the machine is fresh, and it locks itself after
+setup.
+
+### Fresh-state rule
+
+The server is "fresh" when it has **no accounts in
+`data/accounts.json` AND no `scripts/.env.storage`**. Note the
+deliberate deviation from the naive rule ("no `.env` with a key"):
+the startup handler auto-generates an API key into `.env` on first
+boot, so requiring "no `.env`" would make the wizard unreachable
+after any normal first start — exactly the state it exists for. The
+auto-generated key counts as "not restored data" because nobody has
+ever seen it. Never allow setup when data already exists: anyone
+with the public link must not be able to overwrite a live server's
+data.
+
+### Endpoints (no auth, fresh-only — enforced server-side, not just in the UI)
+
+- `GET /admin/setup-status` → `{"setup_needed": true/false}`.
+- `POST /admin/setup` with JSON `{B2_ENDPOINT, B2_KEY_ID,
+  B2_APPLICATION_KEY, BACKUP_PASSPHRASE}` → validates all four
+  non-empty and `B2_ENDPOINT` starts with `https://` (400
+  otherwise); writes them to `scripts/.env.storage` (chmod 600,
+  gitignored, never logged or returned); runs
+  `scripts/muse2api-data.sh setup` + `restore` (latest bundle)
+  reusing the stock script — the restore logic is not rewritten.
+  On success returns `{"ok": true, "accounts": N, "bundle": name}`
+  (count only, no cookie values). On failure returns the error with
+  secrets scrubbed and leaves the server fresh so setup can be
+  retried. A failed attempt cleans up after itself: it removes the
+  just-written `.env.storage`, any `accounts.json` the attempt
+  created, and a just-added rclone remote — otherwise stale wrong
+  credentials would poison every retry (`setup` is a no-op when the
+  remote already exists). After success, setup-status is false and
+  `POST /admin/setup` returns 403.
+- Code: `app.py` (wizard section after `auth()`:
+  `_setup_needed`, `_run_setup_restore`, `_reload_after_restore`,
+  the two routes), `store.py` (`Store.reload()`).
+
+### After a restore: hot reload, not restart
+
+The restored `.env` (API key) and `accounts.json` are picked up in
+the running process — a restart would drop the setup response in
+flight and any in-progress generations. One subtlety that bit the
+first test: `_reload_after_restore` reads the key from the **`.env`
+file directly**, NOT via `_read_env_key`. That helper prefers
+`os.environ`, and `os.environ` still holds the pre-restore key:
+`config._load_dotenv` copies `.env` into the process env at import,
+and on a fresh boot that is the auto-generated key nobody has ever
+seen. Reading via the env would leave the server on a key nobody
+knows and the restored key could never log in (this was reproduced
+by the regression test in `tests/test_first_run_setup.py` and fixed
+2026-11-27). `store.reload()` re-reads accounts from disk.
+
+### Admin UI
+
+`admin.html` calls `/admin/setup-status` first on load. If setup is
+needed it shows a Setup card (4 password-type fields, short English
+explanation, Restore button) and hides the key box and the 6 tabs;
+on success it shows the accounts count and bundle and tells the
+user to log in with the restored API key. When setup is not needed
+nothing changes: normal API-key login and all 6 tabs work as
+before. The setup form is fetched with plain `fetch`, not the
+authed `api()` helper.
+
+### `start-fresh.sh` — publish a fresh machine for first setup
+
+`bash start-fresh.sh` (or `PORT=18699 bash start-fresh.sh`):
+(a) starts the server the platform's normal way — Docker Compose if
+`docker compose version` works, else `.venv/bin/uvicorn`, else
+system `python3 -m uvicorn`; (b) starts a cloudflared quick tunnel
+to localhost:18610 and prints the public
+`https://*.trycloudflare.com` URL; (c) prints the setup status
+from `/admin/setup-status`. The trycloudflare URL changes on every
+restart — first setup only, not stable public access (for stable
+access use a Codespace public port, §7, or a named Cloudflare
+tunnel). **On the Muse VM trycloudflare is BLOCKED**
+(`api.trycloudflare.com` returns 403 via the VM egress proxy, and
+cloudflared itself fails with a TLS handshake error) — the script
+detects the 403 and says so plainly instead of hanging; the server
+keeps running locally. Implementation note: the backgrounded server
+and tunnel are `disown`ed — without that, bash waits for the
+backgrounded server when the script exits and the script hangs
+instead of returning (found and fixed 2026-11-27).
+
+### Tests
+
+- Unit: `tests/test_first_run_setup.py` (stdlib-only ASGI client,
+  no network) — 15 checks: fresh → setup needed; missing field /
+  non-https endpoint → 400 and stays fresh; accounts or
+  `.env.storage` present → setup locked (403); `store.reload()`
+  re-reads accounts; hot-reload regression (restored key wins over
+  the pre-restore auto-generated key in `os.environ`). Run with the
+  repo venv python.
+- Isolated integration test (2026-11-27, temp dir, live data
+  untouched): setup-status true on a fresh server; wrong B2 values
+  → 500 and the server stays fresh; real values restore bundle
+  `muse2api-data-20261127-044028.tar.gz.age` with 13 accounts;
+  afterwards setup-status false and a second setup → 403.
+- `start-fresh.sh` tested on the VM 2026-11-27: prints the plain
+  BLOCKED message and exits in ~4s, server stays up on the chosen
+  port.

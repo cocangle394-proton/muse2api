@@ -38,6 +38,7 @@ import logging
 import os
 import re
 import queue
+import subprocess
 import threading
 import time
 import uuid
@@ -381,6 +382,221 @@ def auth(authorization: str | None = Header(default=None)):
     if not token or token != CFG.api_key:
         raise HTTPException(401, "Invalid API key")
     return True
+
+
+# ------------------------- First-run setup wizard -------------------------
+# A brand-new machine has no API key its owner knows and no restored
+# data, so the owner cannot log in to paste the 4 B2 values. The wizard
+# lets them do it from the admin page with no key — but ONLY while the
+# server is "fresh". After the first successful restore it locks itself:
+# the setup endpoints then return 403 and the admin goes back to the
+# normal API-key login.
+#
+# Fresh means: no accounts AND no storage config. The .env API key is
+# deliberately NOT part of this check: the startup handler
+# auto-generates a key into .env on first boot, so requiring "no .env
+# key" would make the wizard unreachable after any normal first start —
+# exactly the state it exists for. A key nobody has ever seen is not
+# "restored data".
+_SETUP_LOCK = threading.Lock()
+_SETUP_FIELDS = ("B2_ENDPOINT", "B2_KEY_ID", "B2_APPLICATION_KEY",
+                 "BACKUP_PASSPHRASE")
+# rclone 1.60 on the Muse VM fails with the runtime egress CA bundle set;
+# the stock backup wrapper unsets these for every rclone call.
+_SETUP_CA_VARS = ("SSL_CERT_FILE", "SSL_CERT_DIR", "CURL_CA_BUNDLE",
+                  "REQUESTS_CA_BUNDLE", "AWS_CA_BUNDLE")
+
+
+def _accounts_count() -> int:
+    """Accounts on disk (count only). 0 when the file is missing/unreadable."""
+    try:
+        with open(CFG.accounts_file, encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception:  # noqa: BLE001
+        return 0
+    if isinstance(data, list):
+        return len(data)
+    if isinstance(data, dict) and isinstance(data.get("accounts"), list):
+        return len(data["accounts"])
+    return 0
+
+
+def _setup_needed() -> bool:
+    """True only on a fresh server: no accounts and no storage config."""
+    if os.path.isfile(os.path.join(BASE_DIR, "scripts", ".env.storage")):
+        return False
+    return _accounts_count() == 0
+
+
+def _scrub(text: str, secrets: list[str]) -> str:
+    """Remove secret values from text before it is logged or returned."""
+    out = text or ""
+    for s in secrets:
+        if s:
+            out = out.replace(s, "[REDACTED]")
+    return out
+
+
+def _run_setup_restore(values: dict) -> dict:
+    """Write scripts/.env.storage, run setup + restore (latest bundle),
+    and return {"accounts": N, "bundle": name}. Runs in a worker thread.
+    Reuses the stock scripts/muse2api-data.sh — the restore logic lives
+    there, not here. Raises RuntimeError with a scrubbed message on
+    failure; on failure the server is left fresh so setup can be retried.
+    """
+    storage_path = os.path.join(BASE_DIR, "scripts", ".env.storage")
+    script = os.path.join(BASE_DIR, "scripts", "muse2api-data.sh")
+    secrets = [values[k] for k in _SETUP_FIELDS]
+    had_accounts_file = os.path.isfile(CFG.accounts_file)
+    remote = os.environ.get("STORAGE_REMOTE", "storage")
+    rclone_conf = os.environ.get(
+        "RCLONE_CONFIG",
+        os.path.join(os.path.expanduser("~"), ".config", "rclone", "rclone.conf"))
+    env = dict(os.environ)
+    # Persistent tool binaries (Muse VM): ~/workspace/bin survives VM
+    # replacement, apt-installed rclone/age do not. Prepend when present.
+    home_bin = os.path.join(os.path.expanduser("~"), "workspace", "bin")
+    if os.path.isdir(home_bin):
+        env["PATH"] = home_bin + os.pathsep + env.get("PATH", "")
+    # rclone 1.60 on the VM fails with the runtime egress CA bundle set;
+    # the stock backup wrapper unsets these for every rclone call.
+    for var in _SETUP_CA_VARS:
+        env.pop(var, None)
+    remote_existed = False
+    try:
+        if os.path.isfile(rclone_conf):
+            with open(rclone_conf, encoding="utf-8", errors="ignore") as f:
+                remote_existed = f"[{remote}]" in f.read()
+    except OSError:
+        remote_existed = False
+    try:
+        os.makedirs(os.path.dirname(storage_path), exist_ok=True)
+        with open(storage_path, "w", encoding="utf-8") as f:
+            for k in _SETUP_FIELDS:
+                f.write(f"{k}={values[k]}\n")
+        os.chmod(storage_path, 0o600)
+
+        def _run(args: list[str]) -> subprocess.CompletedProcess:
+            return subprocess.run(args, capture_output=True, text=True,
+                                  timeout=300, env=env, cwd=BASE_DIR)
+
+        r = _run(["bash", script, "setup"])
+        if r.returncode != 0:
+            raise RuntimeError(
+                _scrub((r.stderr or r.stdout or "setup failed").strip()[-2000:],
+                       secrets) or "setup failed")
+        r = _run(["bash", script, "restore"])
+        out = (r.stdout or "") + "\n" + (r.stderr or "")
+        if r.returncode != 0:
+            msg = _scrub(out.strip()[-2000:], secrets) or "restore failed"
+            # Stock-script quirk: with bad credentials, `rclone lsf`
+            # fails inside a command substitution under `set -e`, so
+            # restore dies right after "picking the latest backup"
+            # without saying why. Say it plainly instead.
+            if "restoring bundle:" not in out and "picking the latest backup" in out:
+                msg += (" (could not list backups — check the B2 endpoint/key, "
+                        "or no backup exists yet)")
+            raise RuntimeError(msg)
+        bundle = None
+        m = re.search(r"restoring bundle:\s*(\S+)", out)
+        if m:
+            bundle = m.group(1)
+        count = _accounts_count()
+        if count == 0:
+            raise RuntimeError("restore finished but no accounts were restored")
+        return {"accounts": count, "bundle": bundle}
+    except Exception:
+        # Leave the server fresh so setup can be retried: drop the storage
+        # file we just wrote, and any accounts file the failed attempt
+        # created. Also drop the rclone remote setup() just added — with
+        # wrong credentials in it, a retry would otherwise keep using
+        # them (setup is a no-op when the remote already exists).
+        # The backup bundle itself is never touched.
+        try:
+            if os.path.isfile(storage_path):
+                os.unlink(storage_path)
+        except OSError:
+            pass
+        try:
+            if not had_accounts_file and os.path.isfile(CFG.accounts_file):
+                os.unlink(CFG.accounts_file)
+        except OSError:
+            pass
+        if not remote_existed:
+            try:
+                subprocess.run(["rclone", "config", "delete", remote],
+                               capture_output=True, timeout=30, env=env)
+            except Exception:  # noqa: BLE001
+                pass
+        raise
+
+
+def _reload_after_restore():
+    """Hot-reload the restored state into the running process (no restart
+    needed): the restored .env carries the API key and the restored
+    accounts.json carries the accounts. A restart would also work, but
+    it would drop the setup response in flight and any in-progress
+    generations; hot reload keeps the server up.
+
+    The key MUST be read from the .env file, not via _read_env_key:
+    _read_env_key prefers os.environ, and os.environ still holds the
+    pre-restore key — config._load_dotenv copies .env into the process
+    env at import, and on a fresh boot that is the auto-generated key
+    nobody has ever seen. Reading via _read_env_key would leave
+    CFG.api_key on the old key and the restored key could never log in.
+    """
+    key = ""
+    path = os.path.join(CFG.base_dir, ".env")
+    try:
+        with open(path, encoding="utf-8") as f:
+            for ln in f.read().splitlines():
+                s = ln.strip()
+                if s.startswith("MUSE2API_KEY="):
+                    key = s.split("=", 1)[1].strip()
+                    break
+    except OSError:
+        pass
+    if key:
+        CFG.api_key = key
+        os.environ["MUSE2API_KEY"] = key
+    store.reload()
+
+
+@app.get("/admin/setup-status")
+def setup_status():
+    return {"setup_needed": _setup_needed()}
+
+
+@app.post("/admin/setup")
+async def setup_restore(payload: dict = Body(...)):
+    """First-run setup: restore the latest B2 backup. No auth — but only
+    while the server is fresh (see _setup_needed). Locks itself after
+    the first successful restore."""
+    if not _SETUP_LOCK.acquire(blocking=False):
+        raise HTTPException(409, "A setup restore is already in progress")
+    try:
+        if not _setup_needed():
+            raise HTTPException(
+                403, "Setup is not available: this server already has data")
+        if not isinstance(payload, dict):
+            raise HTTPException(400, "JSON body required")
+        values = {}
+        for field in _SETUP_FIELDS:
+            v = payload.get(field)
+            if not isinstance(v, str) or not v.strip():
+                raise HTTPException(400, f"{field} is required")
+            values[field] = v.strip()
+        if not values["B2_ENDPOINT"].startswith("https://"):
+            raise HTTPException(400, "B2_ENDPOINT must be an https:// URL")
+        try:
+            result = await asyncio.to_thread(_run_setup_restore, values)
+        except RuntimeError as exc:
+            raise HTTPException(500, str(exc) or "restore failed")
+        _reload_after_restore()
+        return {"ok": True, "accounts": result["accounts"],
+                "bundle": result["bundle"]}
+    finally:
+        _SETUP_LOCK.release()
 
 
 # ------------------------- Request models -------------------------

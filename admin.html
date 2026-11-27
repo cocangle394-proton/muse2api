@@ -101,6 +101,12 @@
   }
   textarea{font-family:ui-monospace,monospace;resize:vertical;line-height:1.55}
   input:focus,textarea:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(79,140,255,.13)}
+
+  /* ---------- First-run setup wizard ---------- */
+  body.setup-mode main>*:not(#setupCard){display:none!important}
+  body.setup-mode #keyBox{display:none!important}
+  #setupCard input[type=password]{width:100%;background:var(--bg2);color:var(--text);border:1px solid var(--line);border-radius:9px;padding:9px 12px;font-size:13px;outline:none;font-family:ui-monospace,monospace}
+  #setupCard input[type=password]:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(79,140,255,.13)}
   dialog.proxy-dialog{width:min(480px,calc(100% - 32px));max-height:calc(100dvh - 32px);overflow:auto;
     background:var(--panel);color:var(--text);border:1px solid var(--line2);border-radius:var(--radius);padding:24px}
   dialog.proxy-dialog::backdrop{background:rgba(0,0,0,.65)}
@@ -240,6 +246,29 @@
 </header>
 
 <main>
+  <!-- First-run setup wizard: shown instead of the login screen only while
+       the server is fresh (no accounts, no backup configured). See
+       GET /admin/setup-status. Hidden by default; the script reveals it. -->
+  <div class="card" id="setupCard" style="display:none" data-no-i18n>
+    <h3>🛠️ First-run setup — restore from backup</h3>
+    <div class="hint">This server is fresh: it has no accounts and no backup configured yet, so no API key is needed for this step. Paste the 4 Backblaze B2 values below and the server will restore the latest backup (API key + accounts). After the restore this page locks itself — log in with the restored API key from then on. The values are written to <code>scripts/.env.storage</code> on this server only and are never shown again.</div>
+    <div id="setupForm">
+      <div class="row"><div><label>B2 Endpoint</label><input id="suEndpoint" type="password" placeholder="https://s3.us-west-004.backblazeb2.com" autocomplete="off"></div></div>
+      <div class="row"><div><label>B2 Key ID</label><input id="suKeyId" type="password" placeholder="B2 application key ID" autocomplete="off"></div></div>
+      <div class="row"><div><label>B2 Application Key</label><input id="suAppKey" type="password" placeholder="B2 application key (shown once by Backblaze)" autocomplete="off"></div></div>
+      <div class="row"><div><label>Backup Passphrase</label><input id="suPassphrase" type="password" placeholder="Age passphrase that encrypts the backup bundle" autocomplete="off"></div></div>
+      <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button id="btnSetup" onclick="submitSetup()">Restore from B2</button>
+      </div>
+      <div class="hint" id="setupMsg" style="margin-top:10px"></div>
+    </div>
+    <div id="setupDone" style="display:none">
+      <p>✅ Restore complete — <b><span id="setupDoneAccounts">0</span> accounts</b> restored<span id="setupDoneBundle"></span>.</p>
+      <p class="hint">This setup page is now locked. Log in with the restored API key (paste it in the box at the top-right and click Save) to use the admin console.</p>
+      <button onclick="location.reload()">Go to login</button>
+    </div>
+  </div>
+
   <!-- Live new-version update notification banner (automatically shown to all deployed users when the official repository has a new commit/version) -->
   <div class="banner" id="updateBanner" style="border-color:rgba(79,140,255,.65);background:linear-gradient(90deg,rgba(79,140,255,.16),rgba(167,139,250,.05));align-items:center;justify-content:space-between;flex-wrap:wrap">
     <div style="display:flex;gap:12px;align-items:flex-start;flex:1;min-width:260px">
@@ -1469,6 +1498,58 @@ function saveKey(){
   refreshAll();
 }
 
+/* ================= First-run setup wizard ================= */
+/* On a fresh server (no accounts, no backup configured) there is no API
+   key the owner knows, so the normal login cannot work. The server
+   answers GET /admin/setup-status with no auth; when it says setup is
+   needed, this page shows the setup form instead of the login screen.
+   After a successful restore the endpoints lock (403) and a reload
+   brings back the normal login. On an older server without the
+   endpoint, the fetch fails and the normal login is used. */
+let SETUP_MODE = false;
+async function checkSetup(){
+  try{
+    const r = await fetch('/admin/setup-status');
+    if (!r.ok) return false;
+    const d = await r.json();
+    if (d && d.setup_needed){
+      SETUP_MODE = true;
+      document.body.classList.add('setup-mode');
+      $('setupCard').style.display = 'block';
+      return true;
+    }
+  }catch(e){ /* old server or unreachable: fall through to normal login */ }
+  return false;
+}
+async function submitSetup(){
+  const vals = {
+    B2_ENDPOINT: $('suEndpoint').value.trim(),
+    B2_KEY_ID: $('suKeyId').value.trim(),
+    B2_APPLICATION_KEY: $('suAppKey').value.trim(),
+    BACKUP_PASSPHRASE: $('suPassphrase').value.trim(),
+  };
+  for (const k of Object.keys(vals)) if (!vals[k]){ toast(k + ' is required', 'warn'); return; }
+  $('setupMsg').textContent = 'Restoring from B2 — this can take a minute…';
+  $('btnSetup').disabled = true;
+  try{
+    const r = await fetch('/admin/setup', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(vals)});
+    let d = null; try { d = await r.json(); } catch(e){}
+    if (!r.ok){
+      let msg = (d && (d.detail || d.error)) || ('HTTP ' + r.status);
+      if (typeof msg !== 'string') msg = JSON.stringify(msg);
+      throw new Error(msg);
+    }
+    $('setupForm').style.display = 'none';
+    $('setupDone').style.display = 'block';
+    $('setupDoneAccounts').textContent = (d && d.accounts != null) ? d.accounts : 0;
+    $('setupDoneBundle').textContent = (d && d.bundle) ? (' from bundle ' + d.bundle) : '';
+  }catch(e){
+    $('setupMsg').textContent = 'Restore failed: ' + e.message + ' — check the four values and try again.';
+  }finally{
+    $('btnSetup').disabled = false;
+  }
+}
+
 function toast(msg, kind){
   const d = document.createElement('div');
   d.className = 'toast ' + (kind || '');
@@ -2446,13 +2527,14 @@ async function loadStatus(){
 
 function refreshAll(){ loadStatus(); loadPool(); loadApikey(); loadRepoStatus(false); }
 
-refreshAll();
+checkSetup().then(needed => { if (!needed) refreshAll(); });
 setInterval(() => {
+  if (SETUP_MODE) return;
   loadStatus(); loadPool();
   if ($('tab-tasks').classList.contains('active')) loadTasks();
 }, 8000);
 setInterval(() => {
-  loadRepoStatus(false);
+  if (!SETUP_MODE) loadRepoStatus(false);
 }, 60000);
 </script>
 </body>
