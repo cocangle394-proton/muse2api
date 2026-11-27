@@ -7,7 +7,10 @@
 ## 1. What this repo is
 
 muse2api is an OpenAI-compatible API over Muse (chat / image / video),
-running in Docker.
+running in Docker on a Codespace — and, since 2026-11-27, as the
+primary host directly on a Muse VM via uvicorn (no Docker there;
+see §13). The rest of this guide describes the Codespace/Docker
+path unless it says "VM".
 
 - Repo (the fork — this is the only repo you push to):
   `https://github.com/cocangle394-proton/muse2api`, branch `main`
@@ -151,7 +154,9 @@ Full backup/restore details, including the migration workflow, are in
   to recreate the container, verify the key, then run a fresh backup.
 - `GET /admin/status` with the key returns 200 and shows the accounts
   and stats. The restored accounts count must match the old platform.
-  (Last known state: 8 accounts in `data/accounts.json`, 3 enabled.)
+  (Last known state: 13 accounts in `data/accounts.json`, 4 enabled:
+  redstone32, acc1, acc2, acc7 — merged from the Codespace on
+  2026-11-27, see §13.)
 - Real generation test: `POST /v1/chat/completions` with model
   `muse-spark` must return 200 with real content. If it fails, check
   §8 first — on a Muse VM the usual cause is a missing/bad proxy,
@@ -166,6 +171,20 @@ The public admin URL is then:
 
 Anyone with the link can open the page, but the API key is still
 required to use it. Do not share the key.
+
+**VM service published through the Codespace (live since 2026-11-27):**
+the VM runs a persistent reverse tunnel
+`ssh -N -R 18611:localhost:18610 codespace@codespaces-2da4bc`, so
+Codespace port **18611** serves the VM's muse2api, and that port is
+Public: `https://<codespace-name>-18611.app.github.dev/`. Use the
+18611 URL for the VM service and the 18610 URL for the Codespace's
+own container — they are different services with the same API key
+and (since the 2026-11-27 merge) the same accounts.
+
+Note (2026-11-27): port 18610 was seen showing as Private in the
+Ports panel even though it had been made Public on 2026-11-25 —
+visibility may reset on a Codespace restart. Re-check visibility
+after any restart; do not assume it stuck.
 
 ## 8. Proxy — when you need one and when you don't
 
@@ -287,10 +306,28 @@ if you fix it, fix it in this repo and push to the fork.
   (outgoing only, no exit-node selection). The VM reaches the
   tailnet only through its CONNECT proxy — enough for SSH to the
   Codespace and for the proxy bridge in §8, not for a full join.
-- **Muse VM demo is localhost-only.** There is no `tailscale0`
+- **Muse VM is localhost-only by itself.** There is no `tailscale0`
   interface on the VM, and the old `http://100.95.59.119:18610/`
-  address is not usable (502). Do not give that address to the
-  owner. Use the Codespace public URL (§7) for real use.
+  address is not usable (502). The VM service is published through
+  the Codespace reverse tunnel on port 18611 (§7, §13) — give the
+  owner the 18611 public URL, never the Tailscale IP.
+- **rclone on the VM fails with the runtime CA env vars set.**
+  `LoadCustomCABundleError ... unsupported transport` — unset
+  `SSL_CERT_FILE`, `SSL_CERT_DIR`, `CURL_CA_BUNDLE`,
+  `REQUESTS_CA_BUNDLE` and `AWS_CA_BUNDLE` for every rclone call
+  (see §13). Do not work around it by disabling TLS verification.
+- **`tailscale status` hangs when run from a systemd unit.** It
+  works fine from an agent shell but never returns under systemd,
+  so a unit that calls it never starts its real process. Resolve
+  the Codespace IP in the start script (agent context) and pass it
+  via a file (`~/workspace/bridge-target.txt`).
+- **Free public SOCKS5 lists do not work from a Muse VM** (verified
+  2026-11-27 with monosans/proxy-list: top 5 of 219 SOCKS5 proxies
+  all failed). TCP to the proxy opens, but the SOCKS5 handshake
+  gets an invalid-version response — the VM's egress path does not
+  carry raw SOCKS5 to the public internet. Only the Tailscale
+  bridge path (§8) works from the VM. Do not put free-list proxies
+  on real accounts.
 - **SSH sessions to the Codespace break after ~35–40s** ("Broken
   pipe"). Keep each SSH command under ~30s, or run longer work
   detached on the Codespace (output to a log) and poll the log.
@@ -325,3 +362,113 @@ if you fix it, fix it in this repo and push to the fork.
   30 minutes idle, 12-hour max session, stopped Codespace deleted
   after 30 days without reopening. Opening more Codespaces does not
   increase quota — it is per account, aggregate.
+
+## 13. Running on a Muse VM (primary host, since 2026-11-27)
+
+The Muse VM is the primary host. The Codespace still runs its own
+container and hosts the muse.ai proxy, but the service the owner
+uses is the VM's, published through the Codespace (see §7).
+
+How the VM differs from the Codespace path:
+
+- **No Docker on the VM.** The service runs directly from the repo
+  checkout at `~/workspace/muse2api` with its own venv:
+  `MUSE2API_HOME=<repo>`, `MUSE2API_CHROMIUM=~/workspace/chrome-linux64/chrome`,
+  `~/workspace/muse2api/.venv/bin/uvicorn app:app --host 0.0.0.0 --port 18610`.
+  The stock `start-muse2api.sh` (Docker) does **not** work on the VM.
+  Use `~/workspace/start-muse2api-vm.sh` instead — it is idempotent
+  (flock), starts only what is missing, and verifies admin 200 and
+  `/v1/models` 200 with the key.
+- **Three components must be up:** (1) uvicorn on localhost:18610,
+  (2) the bridge `~/workspace/tailscale_bridge.py` on 127.0.0.1:11080
+  (see §8), (3) the reverse tunnel `ssh -N -R 18611:localhost:18610`
+  to the Codespace (see §7). The start script reconciles all three.
+- **Auto-restart, two layers.** Systemd units (canonical copies in
+  `~/workspace/systemd/`, installed in `/etc/systemd/system/` —
+  `/etc` is ephemeral across VM replacement, so the canonical copies
+  are the source of truth): `muse2api-vm`, `muse2api-bridge`,
+  `muse2api-tunnel`, all `Restart=always`, `WantedBy=default.target`
+  (the guest boots `default.target`, not `multi-user.target`).
+  `systemctl --user` does not work on the VM (no bus) — use the
+  system manager. Plus two runtime crons: `muse2api-vm-health-check`
+  (every 15m, runs the start script when something is down, silent
+  when healthy) and `muse2api-vm-backup-watch` (every 5m, see below).
+  No secrets in any unit file: the bridge CONNECTs to the tunnel
+  proxy without auth (verified), and the tunnel uses Tailscale SSH
+  with no key or password.
+- **Bridge target is a file, not a command.** The Codespace
+  Tailscale IP changes on restart. The start script resolves it via
+  `tailscale status` and writes `~/workspace/bridge-target.txt`;
+  the bridge unit reads that file. Do not call `tailscale status`
+  from a unit — it hangs under systemd (see §11).
+- **The VM still depends on the Codespace proxy for muse.ai** (§8).
+  If the Codespace is down or microsocks is not running there, the
+  VM can serve admin pages but cannot generate. Microsocks on the
+  Codespace does not auto-start — start it manually after a restart.
+- **Public access is only via the Codespace tunnel (§7).** The VM
+  itself has no public URL: trycloudflare is blocked, and the
+  Tailscale IP is not reachable (502). The VM admin is localhost-only.
+
+### Automatic B2 backup on the VM
+
+- Watcher: `~/workspace/muse2api-vm-backup-watch.sh`, run every
+  5 minutes by the `muse2api-vm-backup-watch` cron. State:
+  `~/workspace/muse2api-vm-backup.state` (epoch + accounts.json
+  sha256 of the last successful backup). Log:
+  `~/workspace/muse2api-vm-backup.log` (every decision is logged).
+- Triggers: (1) periodic — 20 minutes since the last successful
+  backup, and only if the server is up (admin 200 and `/v1/models`
+  200 with the key); if the server is down, skip. (2) on change —
+  `data/accounts.json` hash differs from the last successful backup.
+  `--force` backs up regardless (test path only).
+- The backup itself (`~/workspace/muse2api-vm-backup.sh`) reuses the
+  stock script with a docker shim in `~/workspace/bin/docker` (it
+  can only report "no containers" and no-op — it cannot start a
+  real container). It does **not** stop uvicorn; the stock script
+  stages the 4 allowlisted files to a temp dir and encrypts/uploads
+  from the staging copy. A failed backup leaves the server running
+  and is logged; the state is only updated after the bundle is
+  verified present in B2.
+- Manifest: the stock script now writes `"platform": "vm"` when
+  `MUSE2API_PLATFORM=vm` is set (default `"codespace"`); bundle
+  naming and age encryption are unchanged. `created_utc` is the
+  timestamp. On the VM, only `.env` and `data/accounts.json` exist
+  to back up — `data/mail_accounts.txt` and
+  `data/generation-queue.json` are not present on the VM, so they
+  are simply absent from VM bundles.
+- **rclone on the VM needs its CA env vars unset.** With
+  `SSL_CERT_FILE` / `SSL_CERT_DIR` / `CURL_CA_BUNDLE` /
+  `REQUESTS_CA_BUNDLE` / `AWS_CA_BUNDLE` set (they point at the
+  runtime egress CA bundle), rclone 1.60 fails with
+  `LoadCustomCABundleError ... unsupported transport`. Unsetting
+  all five makes rclone use the system CA pool, which already
+  contains the Hatch egress CA. The backup wrapper and watcher do
+  this for every rclone call — do the same for any manual rclone
+  command on the VM.
+- B2 credentials on the VM: `~/workspace/muse2api/scripts/.env.storage`
+  (copied from the Codespace via scp, chmod 600) and
+  `~/.config/rclone/rclone.conf` (written by `setup`, chmod 600).
+
+### Merging accounts between Codespace and VM
+
+Never do a blind restore of one platform's `accounts.json` onto the
+other — the two copies diverge (different `enabled` flags and
+per-account proxy settings). Merge instead (script:
+`~/workspace/merge-accounts.py`):
+
+- Base = the Codespace list (superset of ids), order preserved.
+- Overlapping ids: keep the **VM's** `enabled` flag and its `proxy`
+  / `proxy_status` fields (present only on VM-enabled accounts).
+- New ids: keep the Codespace dict as-is; do not enable anything
+  by hand.
+- Stage the Codespace file via sudo to a temp file first (it is
+  root-owned 600 there), scp it over, chmod 600, remove the temp
+  file, and back up the VM's current file first. Never print cookie
+  values. Stop uvicorn while writing the merged file, then restart
+  via the start script and verify `/admin/status` (2026-11-27
+  merge: 8 VM + 5 new = 13 total, 4 enabled: redstone32, acc1,
+  acc2, acc7).
+- Open gap (2026-11-27): acc7 is enabled but has **no proxy** set
+  (it came from the Codespace). On the VM it cannot generate until
+  `socks5://127.0.0.1:11080` is set on it, like the other three
+  enabled accounts. Do not enable acc3–acc6 without being asked.

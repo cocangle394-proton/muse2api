@@ -342,6 +342,7 @@ manifest = {
     "sha256": os.environ["BACKUP_SHA"],
     "size_bytes": int(os.environ["BACKUP_SIZE"]),
     "created_utc": os.environ["BACKUP_TS"],
+    "platform": os.environ.get("MUSE2API_PLATFORM", "codespace"),
     "accounts_count": int(os.environ["BACKUP_COUNT"]),
     "files": files,
 }
