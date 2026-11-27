@@ -579,6 +579,16 @@ and tunnel are `disown`ed — without that, bash waits for the
 backgrounded server when the script exits and the script hangs
 instead of returning (found and fixed 2026-11-27).
 
+Docker key sync: on a Docker install the app writes its key to
+`/app/.env` inside the container, which is lost on every recreate
+(a new key is generated) and invisible from the host — while `docker
+compose` passes `MUSE2API_KEY` in from the host `.env`. `start-fresh.sh`
+therefore syncs the key into the host `.env` before `docker compose up`
+(preserving the live key, including one restored by the wizard) and
+again after the server is up (saving a first-boot generated key). The
+newer file wins, so a hand-edited host `.env` is still respected.
+Direct `docker compose up` skips the sync — use `start-fresh.sh`.
+
 ### Tests
 
 - Unit: `tests/test_first_run_setup.py` (stdlib-only ASGI client,
