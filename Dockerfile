@@ -24,7 +24,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     procps \
     curl \
     git \
-    ca-certificates \
+            ca-certificates \
+            rclone \
+            age \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
@@ -35,6 +37,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY admin.html app.py cdp.py config.py engine.py store.py proxy.py generation_timing.py thumbnails.py version.json ./
 COPY deploy/ ./deploy/
 COPY extension/ ./extension/
+# scripts/ is needed at runtime: the first-run setup wizard calls
+# scripts/muse2api-data.sh (setup + restore). Without it, restore fails
+# with "No such file or directory" on Docker installs.
+COPY scripts/ ./scripts/
 COPY tools/ ./tools/
 
 # Create the persistent data directory
