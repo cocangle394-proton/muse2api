@@ -75,32 +75,32 @@ info "server is up (via $started)."
 NO_TUNNEL="${MUSE2API_NO_TUNNEL:-0}"
 for arg in "$@"; do
   case "$arg" in
-      --no-tunnel) NO_TUNNEL=1 ;;
-          *) die "unknown argument: $arg (only --no-tunnel is supported)" ;;
-            esac
-            done
-            if [ "$NO_TUNNEL" = "0" ] && [ -t 0 ]; then
-              printf 'Expose a public URL via trycloudflare? [Y/n] '
-                answer=""
-                  IFS= read -r -t 15 answer || true
-                    case "$answer" in
-                        [nN]|[nN][oO]) NO_TUNNEL=1 ;;
-                          esac
-                          fi
-                          if [ "$NO_TUNNEL" = "1" ]; then
-                            info ""
-                              info "no tunnel: server is local only at http://127.0.0.1:$PORT/"
-                                setup="$(curl -s --max-time 5 "http://127.0.0.1:$PORT/admin/setup-status" 2>/dev/null || echo '')"
-                                  if echo "$setup" | grep -q '"setup_needed": *true'; then
-                                      info "setup needed: open http://127.0.0.1:$PORT/ — the first-run setup form appears instead of the login."
-                                          info "Enter the 4 B2 values there; the server restores the latest backup and the setup page then locks itself."
-                                            else
-                                                info "setup already done: open http://127.0.0.1:$PORT/ and log in with your API key."
-                                                  fi
-                                                    exit 0
-                                                    fi
+    --no-tunnel) NO_TUNNEL=1 ;;
+    *) die "unknown argument: $arg (only --no-tunnel is supported)" ;;
+  esac
+done
+if [ "$NO_TUNNEL" = "0" ] && [ -t 0 ]; then
+  printf 'Expose a public URL via trycloudflare? [Y/n] '
+  answer=""
+  IFS= read -r -t 15 answer || true
+  case "$answer" in
+    [nN]|[nN][oO]) NO_TUNNEL=1 ;;
+  esac
+fi
+if [ "$NO_TUNNEL" = "1" ]; then
+  info ""
+  info "no tunnel: server is local only at http://127.0.0.1:$PORT/"
+  setup="$(curl -s --max-time 5 "http://127.0.0.1:$PORT/admin/setup-status" 2>/dev/null || echo '')"
+  if echo "$setup" | grep -q '"setup_needed": *true'; then
+    info "setup needed: open http://127.0.0.1:$PORT/ — the first-run setup form appears instead of the login."
+    info "Enter the 4 B2 values there; the server restores the latest backup and the setup page then locks itself."
+  else
+    info "setup already done: open http://127.0.0.1:$PORT/ and log in with your API key."
+  fi
+  exit 0
+fi
 
-                                                    # ---------- 3. cloudflared quick tunnel ----------
+# ---------- 3. cloudflared quick tunnel ----------
 CLOUDFLARED=""
 for cand in cloudflared "$HOME/workspace/cloudflared" "$REPO_ROOT/cloudflared" /tmp/cloudflared; do
   if [ -x "$cand" ] || command -v "$cand" >/dev/null 2>&1; then CLOUDFLARED="$cand"; break; fi
