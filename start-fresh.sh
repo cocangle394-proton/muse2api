@@ -30,6 +30,43 @@ TUNNEL_LOG="/tmp/muse2api-fresh-tunnel.log"
 
 info() { echo "$*"; }
 die() { echo "error: $*" >&2; exit 1; }
+# The Docker key problem: the app writes its API key to /app/.env INSIDE
+# the container, which is lost when the container is recreated (a new key
+# is generated each time) and invisible from the host — while `docker
+# compose` passes MUSE2API_KEY in from the host .env. So the host .env is
+# the stable home for the key, and this syncs it in both directions:
+#   - before `docker compose up`: copy the key out of the existing
+#     container (if any) into the host .env, so a recreate keeps the live
+#     key — including a key restored by the setup wizard, which only
+#     exists inside the container;
+#   - after the server is up: copy the key out of the (possibly
+#     brand-new) container, so a first-boot generated key survives the
+#     next recreate too.
+# The key changes only inside the container (first boot, wizard restore,
+# admin rotate), except when someone edits the host .env by hand — so the
+# NEWER file wins. Reads the container with `docker exec` when it runs,
+# else `docker cp` (which works on a stopped container).
+_sync_docker_key() {
+  local key="" ctime=0 htime=0
+  if key="$(docker exec muse2api grep -E '^MUSE2API_KEY=[^[:space:]]' /app/.env 2>/dev/null | cut -d= -f2- | tr -d '\r\n')" && [ -n "$key" ]; then
+    ctime="$(docker exec muse2api stat -c %Y /app/.env 2>/dev/null || echo 0)"
+  elif docker cp muse2api:/app/.env /tmp/muse2api-key.env 2>/dev/null; then
+    key="$(grep -E '^MUSE2API_KEY=[^[:space:]]' /tmp/muse2api-key.env 2>/dev/null | cut -d= -f2- | tr -d '\r\n')"
+    ctime="$(stat -c %Y /tmp/muse2api-key.env 2>/dev/null || echo 0)"
+    rm -f /tmp/muse2api-key.env
+  fi
+  [ -n "$key" ] || return 0
+  [ -d "$REPO_ROOT/.env" ] && return 0
+  if [ -f "$REPO_ROOT/.env" ] && [ "$ctime" -gt 0 ]; then
+    htime="$(stat -c %Y "$REPO_ROOT/.env" 2>/dev/null || echo 0)"
+    if grep -qE '^MUSE2API_KEY=[^[:space:]]' "$REPO_ROOT/.env" 2>/dev/null && [ "$htime" -ge "$ctime" ]; then
+      return 0  # host key is present and newer (hand-edited) — compose passes it in
+    fi
+  fi
+  { grep -v '^MUSE2API_KEY=' "$REPO_ROOT/.env" 2>/dev/null || true; printf 'MUSE2API_KEY=%s\n' "$key"; } > "$REPO_ROOT/.env.tmp" && mv "$REPO_ROOT/.env.tmp" "$REPO_ROOT/.env"
+  chmod 600 "$REPO_ROOT/.env"
+  info "saved the API key to .env (it now survives container recreates)"
+}
 
 : > "$LOG"
 : > "$TUNNEL_LOG"
@@ -38,6 +75,7 @@ die() { echo "error: $*" >&2; exit 1; }
 started=""
 if command -v docker >/dev/null 2>&1 && timeout 10 docker compose version >/dev/null 2>&1; then
   info "starting muse2api with Docker Compose on port $PORT..."
+  _sync_docker_key  # preserve the live key (e.g. restored by the wizard) across the recreate
   (cd "$REPO_ROOT" && PORT="$PORT" docker compose up -d --build >>"$LOG" 2>&1) || die "docker compose up failed (see $LOG)"
   started="docker"
 elif [ -x "$REPO_ROOT/.venv/bin/uvicorn" ]; then
@@ -66,6 +104,7 @@ for _ in $(seq 1 30); do
 done
 [ "$ok" -eq 1 ] || die "admin page did not return 200 on port $PORT (started via $started; see $LOG)"
 info "server is up (via $started)."
+if [ "$started" = "docker" ]; then _sync_docker_key; fi  # save the first-boot key, if the host .env still lacks one
 
 # ---------- 2. Ask about the tunnel (interactive only) ----------
 # --no-tunnel / MUSE2API_NO_TUNNEL=1 skips the public URL entirely.
